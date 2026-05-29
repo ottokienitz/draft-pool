@@ -872,6 +872,7 @@ Supports:
                                 </select>
                                 <select id="sortBy" onchange="updateCubeList()" style="flex: 1; min-width: 100px; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; font-size: 0.8rem;">
                                     <option value="name">Sort: Name</option>
+                                    <option value="elo">Sort: Power (ELO)</option>
                                     <option value="cmc">Sort: Mana Value</option>
                                     <option value="color">Sort: Color</option>
                                     <option value="type">Sort: Type</option>
@@ -1248,17 +1249,43 @@ Supports:
                     throw new Error('No cards found in cube');
                 }
                 
-                state.cube = mainboard.map(card => ({
-                    name: card.name || card.details?.name || 'Unknown',
-                    colors: card.colors || card.details?.colors || [],
-                    type_line: card.type_line || card.details?.type || '',
-                    cmc: card.cmc ?? card.details?.cmc ?? 0,
-                    image_small: card.image_small || card.details?.image_small || '',
-                    image_normal: card.image_normal || card.details?.image_normal || '',
-                    tags: card.tags || [],
-                    picked: false,
-                    pickedBy: null
-                }));
+                state.cube = mainboard.map(card => {
+                    // ELO might be in different places depending on API version
+                    const elo = card.elo || card.details?.elo || null;
+                    
+                    return {
+                        name: card.name || card.details?.name || 'Unknown',
+                        colors: card.colors || card.details?.colors || [],
+                        type_line: card.type_line || card.details?.type || '',
+                        cmc: card.cmc ?? card.details?.cmc ?? 0,
+                        elo: elo,
+                        image_small: card.image_small || card.details?.image_small || '',
+                        image_normal: card.image_normal || card.details?.image_normal || '',
+                        tags: card.tags || [],
+                        picked: false,
+                        pickedBy: null
+                    };
+                });
+                
+                // Log a sample card to see available fields
+                if (mainboard.length > 0) {
+                    console.log('Sample card data:', mainboard[0]);
+                }
+                
+                // Check if we got ELO data
+                const cardsWithElo = state.cube.filter(c => c.elo !== null);
+                const eloStatus = cardsWithElo.length > 0 
+                    ? ` (ELO: ✓)` 
+                    : ` (ELO: not available)`;
+                
+                if (cardsWithElo.length > 0) {
+                    console.log(`ELO data found for ${cardsWithElo.length}/${state.cube.length} cards`);
+                } else {
+                    console.log('No ELO data in response. Available card fields:', Object.keys(mainboard[0] || {}));
+                    if (mainboard[0]?.details) {
+                        console.log('Card details fields:', Object.keys(mainboard[0].details));
+                    }
+                }
                 
                 // Cache images for preview
                 state.cube.forEach(card => {
@@ -1273,7 +1300,7 @@ Supports:
                 
                 saveToFirebase();
                 
-                document.getElementById('cubeStatus').textContent = `✓ ${state.cube.length} cards loaded from "${state.cubeName}"`;
+                document.getElementById('cubeStatus').textContent = `✓ ${state.cube.length} cards loaded from "${state.cubeName}"${eloStatus}`;
                 document.getElementById('startDraftBtn').disabled = false;
                 showToast(`Loaded ${state.cube.length} cards from CubeCobra!`, 'success');
                 
@@ -1319,6 +1346,7 @@ Supports:
                     colors: card.colors || [],
                     type_line: card.type_line || '',
                     cmc: card.cmc || 0,
+                    elo: null,  // Scryfall doesn't have ELO
                     image_small: card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small || '',
                     image_normal: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal || '',
                     tags: [],
@@ -1335,6 +1363,7 @@ Supports:
                             colors: [],
                             type_line: '',
                             cmc: 0,
+                            elo: null,
                             image_small: '',
                             image_normal: '',
                             tags: [],
@@ -1603,6 +1632,12 @@ Supports:
                 if (a.picked !== b.picked) return a.picked ? 1 : -1;
                 
                 switch (sortBy) {
+                    case 'elo':
+                        // Higher ELO = better, so sort descending
+                        // Cards without ELO go to the end
+                        const aElo = a.elo ?? -9999;
+                        const bElo = b.elo ?? -9999;
+                        return bElo - aElo || a.name.localeCompare(b.name);
                     case 'cmc':
                         return (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name);
                     case 'color':
@@ -1619,7 +1654,13 @@ Supports:
             
             container.innerHTML = filtered.map(card => {
                 const colorClass = getColorClass(card.colors);
-                const cmcDisplay = card.cmc !== undefined ? `<span style="color: #888; font-size: 0.75rem; margin-left: 8px;">${card.cmc}</span>` : '';
+                // Show ELO when sorting by ELO, otherwise show CMC
+                let statDisplay = '';
+                if (sortBy === 'elo' && card.elo !== null) {
+                    statDisplay = `<span style="color: #f0ad4e; font-size: 0.75rem; margin-left: 8px;" title="ELO Rating">${Math.round(card.elo)}</span>`;
+                } else if (card.cmc !== undefined) {
+                    statDisplay = `<span style="color: #888; font-size: 0.75rem; margin-left: 8px;">${card.cmc}</span>`;
+                }
                 return `
                 <div class="card-item ${card.picked ? 'picked' : ''}" 
                      style="position: relative; padding-left: 16px;"
@@ -1627,7 +1668,7 @@ Supports:
                      onmouseenter="showCardPreview('${card.name.replace(/'/g, "\\'")}')"
                      onmouseleave="hideCardPreview()">
                     <div class="color-indicator ${colorClass}"></div>
-                    <span class="card-name">${card.name}${cmcDisplay}</span>
+                    <span class="card-name">${card.name}${statDisplay}</span>
                     ${card.picked ? `<span class="picked-by">${card.pickedBy}</span>` : ''}
                 </div>
             `}).join('');
