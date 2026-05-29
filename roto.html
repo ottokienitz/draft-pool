@@ -1522,7 +1522,6 @@ Supports:
                     </div>
                     <div class="control-group" style="margin-left: auto;">
                         <button class="small" onclick="getAISuggestion()" id="aiSuggestBtn">🤖 AI Suggest</button>
-                        <button class="small secondary" onclick="openAISettings()" title="AI Settings">⚙️</button>
                         <button class="small secondary" onclick="copySpectatorLink()">👁️ Spectator Link</button>
                         <button class="small secondary" onclick="showDraftRecap()" id="recapBtn" style="display: none;">📊 Draft Recap</button>
                     </div>
@@ -1654,81 +1653,11 @@ Supports:
             </div>
         </div>
         
-        <!-- AI Settings Modal -->
-        <div class="modal-overlay" id="aiSettingsModal" style="display: none;">
-            <div class="modal-content">
-                <h3>🤖 AI Settings</h3>
-                <p style="color: #888; font-size: 0.85rem; margin-bottom: 20px;">
-                    Choose how AI recommendations are powered
-                </p>
-                
-                <div class="ai-option">
-                    <label>
-                        <input type="radio" name="aiProvider" value="webllm" onchange="updateAIProvider(this.value)">
-                        <strong>🌐 Browser AI (WebLLM)</strong>
-                    </label>
-                    <p class="option-desc">Runs locally in your browser. Free, private, no setup needed. First use downloads ~4GB model.</p>
-                </div>
-                
-                <div class="ai-option">
-                    <label>
-                        <input type="radio" name="aiProvider" value="gemini" checked onchange="updateAIProvider(this.value)">
-                        <strong>💎 Google Gemini (Free)</strong>
-                    </label>
-                    <p class="option-desc">Fast, high quality, free tier. Pre-configured!</p>
-                    <input type="text" id="geminiProxyUrl" placeholder="Your Cloudflare Worker URL" 
-                           value="https://gemini-proxy.otto-kienitz.workers.dev/"
-                           style="margin-top: 8px;" onchange="saveAISettings()">
-                </div>
-                
-                <div class="ai-option">
-                    <label>
-                        <input type="radio" name="aiProvider" value="claude" onchange="updateAIProvider(this.value)">
-                        <strong>🧠 Claude (via Proxy)</strong>
-                    </label>
-                    <p class="option-desc">Highest quality. Requires proxy setup + paid API.</p>
-                    <input type="text" id="claudeProxyUrl" placeholder="Your Cloudflare Worker URL" 
-                           style="display: none; margin-top: 8px;" onchange="saveAISettings()">
-                </div>
-                
-                <div class="ai-option">
-                    <label>
-                        <input type="radio" name="aiProvider" value="claude-direct" onchange="updateAIProvider(this.value)">
-                        <strong>✨ Claude (Direct)</strong>
-                    </label>
-                    <p class="option-desc">Only works inside Claude.ai chat. No setup needed!</p>
-                </div>
-                
-                <div class="ai-option">
-                    <label>
-                        <input type="radio" name="aiProvider" value="none" onchange="updateAIProvider(this.value)">
-                        <strong>❌ Disable AI</strong>
-                    </label>
-                    <p class="option-desc">Use the app without AI features.</p>
-                </div>
-                
-                <div id="webllmStatus" style="display: none; margin-top: 15px; padding: 10px; background: rgba(78,205,196,0.1); border-radius: 8px;">
-                    <div id="webllmProgress">Ready to load model...</div>
-                    <button onclick="loadWebLLM()" id="loadWebLLMBtn" class="small" style="margin-top: 8px;">Download & Load Model</button>
-                </div>
-                
-                <div style="margin-top: 20px; display: flex; gap: 10px;">
-                    <button onclick="closeAISettings()">Save & Close</button>
-                    <a href="https://aistudio.google.com/apikey" target="_blank" class="small secondary" style="padding: 12px 16px; text-decoration: none; display: inline-block;">Get Gemini Key</a>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    
-    <!-- WebLLM for browser-based AI -->
-    <script type="module">
-        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
-        window.CreateMLCEngine = CreateMLCEngine;
-    </script>
     
     <script>
         // ============================================================
@@ -1778,28 +1707,13 @@ Supports:
         let isSpectator = false;
         let timerInterval = null;
         
-        // AI Provider Settings
-        // DEFAULT: Uses your Cloudflare Worker proxy for free Gemini AI
-        // Visitors don't need to configure anything!
-        let aiProvider = 'gemini';
-        let webllmEngine = null;
-        let webllmLoading = false;
-        let proxyUrl = 'https://gemini-proxy.otto-kienitz.workers.dev/';
+        // AI Settings - Hardcoded to your Gemini proxy
+        const AI_PROXY_URL = 'https://gemini-proxy.otto-kienitz.workers.dev/';
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             playerName = localStorage.getItem('roto-player-name') || '';
             document.getElementById('playerName').value = playerName;
-            
-            // Load AI settings
-            const savedAI = localStorage.getItem('roto-ai-settings');
-            if (savedAI) {
-                try {
-                    const settings = JSON.parse(savedAI);
-                    aiProvider = settings.provider || 'claude-direct';
-                    proxyUrl = settings.proxyUrl || '';
-                } catch (e) {}
-            }
             
             // Load random card art background
             loadRandomArt();
@@ -3187,56 +3101,49 @@ Supports:
             const content = document.getElementById('aiPanelContent');
             const btn = document.getElementById('aiSuggestBtn');
             
-            // Check AI provider
-            if (aiProvider === 'none') {
-                showToast('AI features are disabled. Click ⚙️ to enable.', 'error');
-                return;
-            }
-            
-            if (aiProvider === 'webllm' && !webllmEngine) {
-                openAISettings();
-                showToast('Please load the WebLLM model first', 'error');
-                return;
-            }
-            
-            if ((aiProvider === 'gemini' || aiProvider === 'claude') && !proxyUrl) {
-                openAISettings();
-                showToast('Please configure your proxy URL', 'error');
-                return;
-            }
-            
             const myIndex = state.players.findIndex(p => 
                 p.toLowerCase() === playerName.toLowerCase()
             );
             
             panel.style.display = 'block';
-            content.innerHTML = `<div class="loading">🤖 Analyzing with ${getProviderName()}...</div>`;
+            content.innerHTML = '<div class="loading">🤖 Analyzing with Gemini AI...</div>';
             btn.disabled = true;
             
             try {
                 const prompt = buildDraftPrompt(myIndex);
-                let responseText;
                 
-                // Call appropriate provider
-                switch (aiProvider) {
-                    case 'webllm':
-                        responseText = await callWebLLM(prompt);
-                        break;
-                    case 'gemini':
-                        responseText = await callProxy('gemini', prompt);
-                        break;
-                    case 'claude':
-                        responseText = await callProxy('claude', prompt);
-                        break;
-                    case 'claude-direct':
-                    default:
-                        responseText = await callClaudeDirect(prompt);
-                        break;
+                console.log('Calling AI proxy:', AI_PROXY_URL);
+                
+                const response = await fetch(AI_PROXY_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        provider: 'gemini', 
+                        prompt: prompt 
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Proxy error response:', errorText);
+                    throw new Error(`Proxy error (${response.status}): ${errorText}`);
                 }
+                
+                const data = await response.json();
+                console.log('AI response:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                const responseText = data.text || '';
                 
                 // Parse JSON from response
                 const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                 if (!jsonMatch) {
+                    console.error('Could not parse JSON from:', responseText);
                     throw new Error('Could not parse AI response');
                 }
                 
@@ -3248,26 +3155,15 @@ Supports:
                 content.innerHTML = `
                     <div style="color: #e74c3c; padding: 20px; text-align: center;">
                         <p>⚠️ Could not get AI recommendations</p>
-                        <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">${error.message}</p>
-                        <button onclick="openAISettings()" class="small secondary" style="margin-top: 15px;">
-                            ⚙️ Check AI Settings
-                        </button>
+                        <p style="font-size: 0.85rem; color: #888; margin-top: 10px;">${error.message}</p>
+                        <p style="font-size: 0.75rem; color: #666; margin-top: 15px;">
+                            Check browser console (F12) for details
+                        </p>
                     </div>
                 `;
             } finally {
                 btn.disabled = false;
             }
-        }
-        
-        function getProviderName() {
-            const names = {
-                'webllm': 'Browser AI',
-                'gemini': 'Gemini',
-                'claude': 'Claude (Proxy)',
-                'claude-direct': 'Claude',
-                'none': 'Disabled'
-            };
-            return names[aiProvider] || aiProvider;
         }
         
         function buildDraftPrompt(myIndex) {
@@ -3332,152 +3228,6 @@ Format your response as JSON only, no other text:
   ],
   "hateDraft": {"card": "Card Name or null", "reasoning": "Why deny this..."}
 }`;
-        }
-        
-        // Claude Direct (works in Claude.ai artifacts)
-        async function callClaudeDirect(prompt) {
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
-                    max_tokens: 1000,
-                    messages: [{ role: 'user', content: prompt }]
-                })
-            });
-            
-            if (!response.ok) throw new Error(`Claude API error: ${response.status}`);
-            const data = await response.json();
-            return data.content?.[0]?.text || '';
-        }
-        
-        // Proxy call (for Gemini or Claude via Cloudflare Worker)
-        async function callProxy(provider, prompt) {
-            const response = await fetch(proxyUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider, prompt })
-            });
-            
-            if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
-            const data = await response.json();
-            if (data.error) throw new Error(data.error);
-            return data.text || '';
-        }
-        
-        // WebLLM (browser-based)
-        async function callWebLLM(prompt) {
-            if (!webllmEngine) throw new Error('WebLLM not loaded');
-            
-            const response = await webllmEngine.chat.completions.create({
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.7,
-                max_tokens: 1000
-            });
-            
-            return response.choices?.[0]?.message?.content || '';
-        }
-        
-        // WebLLM Loading
-        async function loadWebLLM() {
-            if (webllmLoading) return;
-            if (!window.CreateMLCEngine) {
-                showToast('WebLLM not available. Try refreshing the page.', 'error');
-                return;
-            }
-            
-            webllmLoading = true;
-            const btn = document.getElementById('loadWebLLMBtn');
-            const progress = document.getElementById('webllmProgress');
-            btn.disabled = true;
-            btn.textContent = 'Loading...';
-            
-            try {
-                progress.innerHTML = `
-                    <div>Downloading model (this may take a few minutes)...</div>
-                    <div class="webllm-progress-bar"><div class="fill" id="webllmFill" style="width: 0%"></div></div>
-                `;
-                
-                webllmEngine = await window.CreateMLCEngine(
-                    "Llama-3.1-8B-Instruct-q4f16_1-MLC",
-                    {
-                        initProgressCallback: (info) => {
-                            const fill = document.getElementById('webllmFill');
-                            if (fill && info.progress) {
-                                fill.style.width = `${Math.round(info.progress * 100)}%`;
-                            }
-                            progress.querySelector('div').textContent = info.text || 'Loading...';
-                        }
-                    }
-                );
-                
-                progress.innerHTML = '✅ Model loaded and ready!';
-                btn.textContent = 'Model Loaded';
-                showToast('Browser AI ready!', 'success');
-                
-            } catch (error) {
-                console.error('WebLLM error:', error);
-                progress.innerHTML = `❌ Failed to load: ${error.message}`;
-                btn.disabled = false;
-                btn.textContent = 'Retry Load';
-            } finally {
-                webllmLoading = false;
-            }
-        }
-        
-        // AI Settings UI
-        function openAISettings() {
-            const modal = document.getElementById('aiSettingsModal');
-            modal.style.display = 'flex';
-            
-            // Load saved settings
-            const saved = localStorage.getItem('roto-ai-settings');
-            if (saved) {
-                const settings = JSON.parse(saved);
-                aiProvider = settings.provider || 'claude-direct';
-                proxyUrl = settings.proxyUrl || '';
-            }
-            
-            // Update radio buttons
-            document.querySelector(`input[name="aiProvider"][value="${aiProvider}"]`).checked = true;
-            updateAIProvider(aiProvider);
-            
-            // Update proxy URLs
-            document.getElementById('geminiProxyUrl').value = proxyUrl;
-            document.getElementById('claudeProxyUrl').value = proxyUrl;
-        }
-        
-        function closeAISettings() {
-            document.getElementById('aiSettingsModal').style.display = 'none';
-            saveAISettings();
-        }
-        
-        function updateAIProvider(provider) {
-            aiProvider = provider;
-            
-            // Show/hide relevant inputs
-            document.getElementById('geminiProxyUrl').style.display = provider === 'gemini' ? 'block' : 'none';
-            document.getElementById('claudeProxyUrl').style.display = provider === 'claude' ? 'block' : 'none';
-            document.getElementById('webllmStatus').style.display = provider === 'webllm' ? 'block' : 'none';
-            
-            // Update button visibility
-            const aiBtn = document.getElementById('aiSuggestBtn');
-            if (aiBtn) {
-                aiBtn.style.display = provider === 'none' ? 'none' : 'inline-block';
-            }
-            
-            saveAISettings();
-        }
-        
-        function saveAISettings() {
-            const geminiUrl = document.getElementById('geminiProxyUrl').value;
-            const claudeUrl = document.getElementById('claudeProxyUrl').value;
-            proxyUrl = aiProvider === 'gemini' ? geminiUrl : claudeUrl;
-            
-            localStorage.setItem('roto-ai-settings', JSON.stringify({
-                provider: aiProvider,
-                proxyUrl: proxyUrl
-            }));
         }
         
         function displayAIRecommendations(result) {
