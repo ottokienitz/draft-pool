@@ -3285,34 +3285,22 @@ Supports:
                 .filter(Boolean)
                 .join('\n');
             
-            return `You are an expert Magic: The Gathering cube drafter. Analyze this rotisserie draft and recommend the best picks.
+            return `You are an MTG cube draft expert. Analyze this rotisserie draft and recommend picks. Be concise.
 
 CUBE: ${state.cubeName || 'Custom Cube'}
-PICK NUMBER: ${state.currentPick + 1}
-MY PICKS SO FAR (${myPicks.length} cards):
-${myPicks.length > 0 ? myPicks.join('\n') : '(No picks yet - this is my first pick!)'}
+PICK: ${state.currentPick + 1}
+
+MY PICKS (${myPicks.length}):
+${myPicks.length > 0 ? myPicks.join(', ') : '(First pick)'}
 
 OPPONENTS:
-${opponentAnalysis}
+${opponentAnalysis || 'No picks yet'}
 
-TOP AVAILABLE CARDS (by ELO rating):
-${availableCards.join('\n')}
+TOP AVAILABLE (by ELO):
+${availableCards.slice(0, 30).join('\n')}
 
-Based on my current picks and what's available, provide:
-1. A brief assessment of what archetype/colors I should be in (2-3 sentences)
-2. Your TOP 3 recommended picks with reasoning for each (consider synergy, power level, and mana curve)
-3. Any hate draft considerations (cards I should take to deny opponents)
-
-Format your response as JSON only, no other text:
-{
-  "strategy": "Your assessment of my deck direction...",
-  "recommendations": [
-    {"card": "Card Name", "reasoning": "Why this card..."},
-    {"card": "Card Name", "reasoning": "Why this card..."},
-    {"card": "Card Name", "reasoning": "Why this card..."}
-  ],
-  "hateDraft": {"card": "Card Name or null", "reasoning": "Why deny this..."}
-}`;
+Respond with ONLY this JSON (no markdown, no extra text):
+{"strategy":"1-2 sentences on my deck direction","recommendations":[{"card":"Name","reasoning":"1 sentence"},{"card":"Name","reasoning":"1 sentence"},{"card":"Name","reasoning":"1 sentence"}],"hateDraft":{"card":"Name or null","reasoning":"1 sentence"}}`;
         }
         
         function displayAIRecommendations(result) {
