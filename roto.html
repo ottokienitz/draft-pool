@@ -859,8 +859,8 @@ Supports:
                     <div class="cube-panel">
                         <div class="cube-header">
                             <h3>Available Cards (<span id="availableCount">0</span>)</h3>
-                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                                <select id="colorFilter" onchange="updateCubeList()" style="flex: 1; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; font-size: 0.8rem;">
+                            <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+                                <select id="colorFilter" onchange="updateCubeList()" style="flex: 1; min-width: 100px; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; font-size: 0.8rem;">
                                     <option value="">All Colors</option>
                                     <option value="W">White</option>
                                     <option value="U">Blue</option>
@@ -870,12 +870,16 @@ Supports:
                                     <option value="M">Multicolor</option>
                                     <option value="C">Colorless</option>
                                 </select>
-                                <select id="sortBy" onchange="updateCubeList()" style="flex: 1; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; font-size: 0.8rem;">
+                                <select id="sortBy" onchange="updateCubeList()" style="flex: 1; min-width: 100px; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; font-size: 0.8rem;">
                                     <option value="name">Sort: Name</option>
                                     <option value="cmc">Sort: Mana Value</option>
                                     <option value="color">Sort: Color</option>
                                     <option value="type">Sort: Type</option>
                                 </select>
+                                <label style="display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #888; white-space: nowrap;">
+                                    <input type="checkbox" id="hidePicked" onchange="updateCubeList()" checked>
+                                    Hide picked
+                                </label>
                             </div>
                             <div class="search-box">
                                 <input type="text" id="cardSearch" placeholder="Search cards..." 
@@ -928,13 +932,13 @@ Supports:
         // 🔥 FIREBASE CONFIG - PASTE YOUR CONFIG HERE
         // ============================================================
         const firebaseConfig = {
-        apiKey: "AIzaSyA4J59NJByT6lIWakeVfFjXxuWRES3DcEE",
-        authDomain: "draft-pool.firebaseapp.com",
-        databaseURL: "https://draft-pool-default-rtdb.firebaseio.com",
-        projectId: "draft-pool",
-        storageBucket: "draft-pool.firebasestorage.app",
-        messagingSenderId: "1095548846982",
-        appId: "1:1095548846982:web:81b4e51b771bf386706207"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
         // ============================================================
         
@@ -1198,31 +1202,59 @@ Supports:
                 cubeId = urlMatch[1];
             }
             
+            // URL decode in case it was copied encoded, then re-encode properly
+            try {
+                cubeId = decodeURIComponent(cubeId);
+            } catch (e) {}
+            
             document.getElementById('cubeStatus').textContent = 'Loading from CubeCobra...';
             
             try {
-                const response = await fetch(`https://cubecobra.com/cube/api/cubeJSON/${encodeURIComponent(cubeId)}`);
+                // Try the cubeJSON endpoint first (gives full card data)
+                let response = await fetch(`https://cubecobra.com/cube/api/cubeJSON/${encodeURIComponent(cubeId)}`);
                 
                 if (!response.ok) {
                     throw new Error(`Cube not found (${response.status})`);
                 }
                 
                 const data = await response.json();
+                console.log('CubeCobra response:', data);
                 
-                // Extract mainboard cards with full data
-                const mainboard = data.cards?.mainboard || [];
+                // Handle different response structures
+                let mainboard = [];
+                if (data.cards?.mainboard) {
+                    mainboard = data.cards.mainboard;
+                } else if (data.mainboard) {
+                    mainboard = data.mainboard;
+                } else if (Array.isArray(data.cards)) {
+                    mainboard = data.cards;
+                } else if (Array.isArray(data)) {
+                    mainboard = data;
+                }
                 
                 if (mainboard.length === 0) {
-                    throw new Error('No cards found in cube mainboard');
+                    // Fallback: try the simple cubelist endpoint
+                    console.log('No cards in cubeJSON, trying cubelist endpoint...');
+                    const listResponse = await fetch(`https://cubecobra.com/cube/api/cubelist/${encodeURIComponent(cubeId)}`);
+                    if (listResponse.ok) {
+                        const text = await listResponse.text();
+                        const names = text.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+                        if (names.length > 0) {
+                            // Load card data from Scryfall
+                            await loadCubeWithScryfall(names, cubeId, data.name || cubeId);
+                            return;
+                        }
+                    }
+                    throw new Error('No cards found in cube');
                 }
                 
                 state.cube = mainboard.map(card => ({
-                    name: card.name,
-                    colors: card.colors || [],
-                    type_line: card.type_line || '',
-                    cmc: card.cmc || 0,
-                    image_small: card.image_small || '',
-                    image_normal: card.image_normal || '',
+                    name: card.name || card.details?.name || 'Unknown',
+                    colors: card.colors || card.details?.colors || [],
+                    type_line: card.type_line || card.details?.type || '',
+                    cmc: card.cmc ?? card.details?.cmc ?? 0,
+                    image_small: card.image_small || card.details?.image_small || '',
+                    image_normal: card.image_normal || card.details?.image_normal || '',
                     tags: card.tags || [],
                     picked: false,
                     pickedBy: null
@@ -1252,7 +1284,90 @@ Supports:
             }
         }
         
-        function loadCubeList() {
+        // Load cube names with Scryfall data
+        async function loadCubeWithScryfall(cardNames, cubeId, cubeName) {
+            document.getElementById('cubeStatus').textContent = `Loading ${cardNames.length} cards from Scryfall...`;
+            
+            try {
+                // Scryfall collection endpoint accepts up to 75 cards at a time
+                const batchSize = 75;
+                const allCards = [];
+                
+                for (let i = 0; i < cardNames.length; i += batchSize) {
+                    const batch = cardNames.slice(i, i + batchSize);
+                    const identifiers = batch.map(name => ({ name }));
+                    
+                    const response = await fetch('https://api.scryfall.com/cards/collection', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ identifiers })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        allCards.push(...data.data);
+                    }
+                    
+                    // Respect rate limit
+                    if (i + batchSize < cardNames.length) {
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                }
+                
+                state.cube = allCards.map(card => ({
+                    name: card.name,
+                    colors: card.colors || [],
+                    type_line: card.type_line || '',
+                    cmc: card.cmc || 0,
+                    image_small: card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small || '',
+                    image_normal: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal || '',
+                    tags: [],
+                    picked: false,
+                    pickedBy: null
+                }));
+                
+                // Add any cards Scryfall didn't find
+                const foundNames = new Set(allCards.map(c => c.name.toLowerCase()));
+                cardNames.forEach(name => {
+                    if (!foundNames.has(name.toLowerCase())) {
+                        state.cube.push({
+                            name,
+                            colors: [],
+                            type_line: '',
+                            cmc: 0,
+                            image_small: '',
+                            image_normal: '',
+                            tags: [],
+                            picked: false,
+                            pickedBy: null
+                        });
+                    }
+                });
+                
+                // Cache images
+                state.cube.forEach(card => {
+                    if (card.image_normal) {
+                        cardDataCache[card.name] = { image: card.image_normal };
+                    }
+                });
+                
+                state.cubeName = cubeName;
+                state.cubeSource = 'cubecobra';
+                state.cubeId = cubeId;
+                
+                saveToFirebase();
+                
+                document.getElementById('cubeStatus').textContent = `✓ ${state.cube.length} cards loaded from "${state.cubeName}"`;
+                document.getElementById('startDraftBtn').disabled = false;
+                showToast(`Loaded ${state.cube.length} cards!`, 'success');
+                
+            } catch (error) {
+                console.error('Scryfall error:', error);
+                showToast(`Failed to load card data: ${error.message}`, 'error');
+            }
+        }
+        
+        async function loadCubeList() {
             const text = document.getElementById('cubeListInput').value;
             const cards = parseCubeList(text);
             
@@ -1261,12 +1376,8 @@ Supports:
                 return;
             }
             
-            state.cube = cards.map(name => ({ name, picked: false, pickedBy: null }));
-            saveToFirebase();
-            
-            document.getElementById('cubeStatus').textContent = `✓ ${cards.length} cards loaded`;
-            document.getElementById('startDraftBtn').disabled = false;
-            showToast(`Loaded ${cards.length} cards!`, 'success');
+            // Load with Scryfall data for color/cmc info
+            await loadCubeWithScryfall(cards, '', 'Manual Cube');
         }
         
         function parseCubeList(text) {
@@ -1467,8 +1578,14 @@ Supports:
             const availableCount = document.getElementById('availableCount');
             const colorFilter = document.getElementById('colorFilter')?.value || '';
             const sortBy = document.getElementById('sortBy')?.value || 'name';
+            const hidePicked = document.getElementById('hidePicked')?.checked ?? true;
             
             let filtered = [...state.cube];
+            
+            // Hide picked cards if checkbox is checked
+            if (hidePicked) {
+                filtered = filtered.filter(card => !card.picked);
+            }
             
             // Apply color filter
             if (colorFilter) {
@@ -1482,7 +1599,7 @@ Supports:
             
             // Sort
             filtered.sort((a, b) => {
-                // Always put picked cards at the end
+                // Always put picked cards at the end (if shown)
                 if (a.picked !== b.picked) return a.picked ? 1 : -1;
                 
                 switch (sortBy) {
