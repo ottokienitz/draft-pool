@@ -1436,7 +1436,7 @@
                     <input type="text" id="playerName" placeholder="Enter your name" onchange="savePlayerName()">
                     
                     <label>Number of Players</label>
-                    <select id="playerCount" onchange="updatePlayerInputs()">
+                    <select id="playerCount" onchange="handlePlayerCountChange()">
                         <option value="2">2 Players</option>
                         <option value="3">3 Players</option>
                         <option value="4">4 Players</option>
@@ -1900,19 +1900,86 @@ Supports:
         function updatePlayerInputs() {
             const count = parseInt(document.getElementById('playerCount').value);
             const container = document.getElementById('playerInputs');
-            container.innerHTML = '';
+            const currentInputCount = container.querySelectorAll('.player-input').length;
             
-            for (let i = 0; i < count; i++) {
+            // Track which input has focus
+            const activeElement = document.activeElement;
+            const activePlayerId = activeElement?.id?.match(/^player(\d+)$/)?.[1];
+            const cursorPosition = activeElement?.selectionStart;
+            
+            // Only regenerate if count changed
+            if (currentInputCount !== count) {
+                container.innerHTML = '';
+                
+                for (let i = 0; i < count; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'player-input';
+                    div.innerHTML = `
+                        <span>${i + 1}.</span>
+                        <input type="text" id="player${i}" placeholder="Player ${i + 1}" 
+                               value="${state.players[i] || ''}"
+                               oninput="updatePlayerName(${i}, this.value)">
+                    `;
+                    container.appendChild(div);
+                }
+                
+                // Restore focus if we had it
+                if (activePlayerId !== undefined && parseInt(activePlayerId) < count) {
+                    const input = document.getElementById(`player${activePlayerId}`);
+                    if (input) {
+                        input.focus();
+                        if (cursorPosition !== undefined) {
+                            input.setSelectionRange(cursorPosition, cursorPosition);
+                        }
+                    }
+                }
+            } else {
+                // Just update values without recreating (preserves focus)
+                for (let i = 0; i < count; i++) {
+                    const input = document.getElementById(`player${i}`);
+                    // Only update if this input doesn't have focus (don't override typing)
+                    if (input && document.activeElement !== input) {
+                        input.value = state.players[i] || '';
+                    }
+                }
+            }
+        }
+        
+        let playerNameDebounce = null;
+        
+        function handlePlayerCountChange() {
+            const newCount = parseInt(document.getElementById('playerCount').value);
+            const container = document.getElementById('playerInputs');
+            
+            // Adjust state.players array to match new count
+            while (state.players.length < newCount) {
+                state.players.push('');
+            }
+            // Trim if reducing (but preserve the data in case they change back)
+            
+            // Force regenerate inputs
+            container.innerHTML = '';
+            for (let i = 0; i < newCount; i++) {
                 const div = document.createElement('div');
                 div.className = 'player-input';
                 div.innerHTML = `
                     <span>${i + 1}.</span>
                     <input type="text" id="player${i}" placeholder="Player ${i + 1}" 
                            value="${state.players[i] || ''}"
-                           onchange="updatePlayerName(${i}, this.value)">
+                           oninput="updatePlayerName(${i}, this.value)">
                 `;
                 container.appendChild(div);
             }
+            
+            // Focus the first empty input
+            for (let i = 0; i < newCount; i++) {
+                if (!state.players[i]) {
+                    document.getElementById(`player${i}`)?.focus();
+                    break;
+                }
+            }
+            
+            saveToFirebase();
         }
         
         function updatePlayerName(index, name) {
@@ -1920,7 +1987,12 @@ Supports:
                 state.players.push('');
             }
             state.players[index] = name;
-            saveToFirebase();
+            
+            // Debounce Firebase saves to avoid spam while typing
+            clearTimeout(playerNameDebounce);
+            playerNameDebounce = setTimeout(() => {
+                saveToFirebase();
+            }, 300);
         }
         
         function randomizePlayerOrder() {
@@ -2336,8 +2408,12 @@ Supports:
                 document.getElementById('draftSetup').style.display = 'block';
                 document.getElementById('draftBoard').classList.remove('active');
                 
-                // Update setup fields
-                document.getElementById('playerCount').value = state.players.length || 8;
+                // Update setup fields (only if different to avoid triggering change events)
+                const playerCountSelect = document.getElementById('playerCount');
+                const expectedCount = state.players.length || 8;
+                if (parseInt(playerCountSelect.value) !== expectedCount) {
+                    playerCountSelect.value = expectedCount;
+                }
                 document.getElementById('picksPerPlayer').value = state.picksPerPlayer;
                 document.getElementById('doublePicksAfter').value = state.doublePicksAfter;
                 updatePlayerInputs();
@@ -3138,13 +3214,21 @@ Supports:
                     throw new Error(data.error);
                 }
                 
-                const responseText = data.text || '';
+                let responseText = data.text || '';
+                
+                // Strip markdown code blocks if Gemini wrapped the JSON
+                responseText = responseText
+                    .replace(/```json\s*/gi, '')
+                    .replace(/```\s*/g, '')
+                    .trim();
+                
+                console.log('Cleaned response:', responseText);
                 
                 // Parse JSON from response
                 const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                 if (!jsonMatch) {
-                    console.error('Could not parse JSON from:', responseText);
-                    throw new Error('Could not parse AI response');
+                    console.error('Could not find JSON in:', responseText);
+                    throw new Error('AI response was not in expected format. Check console for details.');
                 }
                 
                 const result = JSON.parse(jsonMatch[0]);
@@ -3159,6 +3243,7 @@ Supports:
                         <p style="font-size: 0.75rem; color: #666; margin-top: 15px;">
                             Check browser console (F12) for details
                         </p>
+                        <button onclick="closeAIPanel()" class="small secondary" style="margin-top: 15px;">Close</button>
                     </div>
                 `;
             } finally {
