@@ -1,0 +1,1769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotisserie Draft</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e8e8e8;
+        }
+        
+        .app {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        /* Header */
+        header {
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .room-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .room-code {
+            background: rgba(78, 205, 196, 0.2);
+            border: 1px solid rgba(78, 205, 196, 0.4);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            color: #4ecdc4;
+        }
+        
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #888;
+        }
+        
+        .sync-dot.connected {
+            background: #4ecdc4;
+            box-shadow: 0 0 8px rgba(78, 205, 196, 0.6);
+        }
+        
+        /* Room Setup */
+        .room-setup {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            padding: 40px 20px;
+        }
+        
+        .room-setup-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .room-setup-card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #4ecdc4;
+        }
+        
+        .room-setup-card p {
+            color: #888;
+            margin-bottom: 30px;
+        }
+        
+        .room-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .room-action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .room-action-group input {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 1.2rem;
+            color: #fff;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        
+        .room-action-group input:focus {
+            outline: none;
+            border-color: #4ecdc4;
+        }
+        
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #666;
+        }
+        
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        /* Buttons */
+        button {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #fff;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        button.secondary:hover {
+            background: rgba(255,255,255,0.15);
+            box-shadow: none;
+        }
+        
+        button.small {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Main Layout */
+        .main-content {
+            display: none;
+            flex: 1;
+        }
+        
+        .main-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Draft Setup */
+        .draft-setup {
+            padding: 30px 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .draft-setup h2 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #4ecdc4;
+        }
+        
+        .setup-section {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .setup-section h3 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .setup-section label {
+            display: block;
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        
+        .setup-section input[type="text"],
+        .setup-section input[type="number"],
+        .setup-section select {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 0.9rem;
+            color: #fff;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .setup-section input:focus,
+        .setup-section select:focus {
+            outline: none;
+            border-color: #4ecdc4;
+        }
+        
+        .setup-section textarea {
+            width: 100%;
+            height: 200px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.8rem;
+            color: #e8e8e8;
+            resize: vertical;
+        }
+        
+        .setup-section textarea:focus {
+            outline: none;
+            border-color: #4ecdc4;
+        }
+        
+        .player-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+        }
+        
+        .player-input {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .player-input span {
+            color: #888;
+            font-size: 0.85rem;
+            min-width: 20px;
+        }
+        
+        .player-input input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        /* Draft Board */
+        .draft-board {
+            display: none;
+            flex: 1;
+        }
+        
+        .draft-board.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Turn Banner */
+        .turn-banner {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            padding: 15px 20px;
+            text-align: center;
+        }
+        
+        .turn-banner.not-your-turn {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .turn-banner h2 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+        
+        .turn-banner .pick-info {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        /* Draft Content */
+        .draft-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        @media (max-width: 900px) {
+            .draft-content {
+                flex-direction: column;
+            }
+        }
+        
+        /* Cube Panel */
+        .cube-panel {
+            width: 350px;
+            background: rgba(0,0,0,0.2);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        @media (max-width: 900px) {
+            .cube-panel {
+                width: 100%;
+                height: 50vh;
+                border-right: none;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+        }
+        
+        .cube-header {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .cube-header h3 {
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+        }
+        
+        .search-box {
+            position: relative;
+        }
+        
+        .search-box input {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 10px 14px;
+            padding-right: 40px;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 0.9rem;
+            color: #fff;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: #4ecdc4;
+        }
+        
+        .search-box .clear-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 1rem;
+        }
+        
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1a1a2e;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 0 0 6px 6px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+        
+        .autocomplete-dropdown.active {
+            display: block;
+        }
+        
+        .autocomplete-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: rgba(78, 205, 196, 0.2);
+        }
+        
+        .autocomplete-item.picked {
+            opacity: 0.4;
+            text-decoration: line-through;
+        }
+        
+        .mana-cost {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        .cube-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .card-item {
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            transition: background 0.15s;
+        }
+        
+        .card-item:hover {
+            background: rgba(78, 205, 196, 0.15);
+        }
+        
+        .card-item.picked {
+            opacity: 0.3;
+            text-decoration: line-through;
+            pointer-events: none;
+        }
+        
+        .card-item .card-name {
+            flex: 1;
+        }
+        
+        .card-item .picked-by {
+            font-size: 0.75rem;
+            color: #888;
+            margin-left: 10px;
+        }
+        
+        /* Color Indicators */
+        .color-indicator {
+            width: 4px;
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            border-radius: 4px 0 0 4px;
+        }
+        
+        .color-W { background: #f8f6d8; }
+        .color-U { background: #0e68ab; }
+        .color-B { background: #150b00; }
+        .color-R { background: #d3202a; }
+        .color-G { background: #00733e; }
+        .color-M { background: linear-gradient(135deg, #c9a35b, #a88b3d); }
+        .color-C { background: #9fa1a4; }
+        
+        /* Picks Panel */
+        .picks-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .picks-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .picks-header h3 {
+            font-size: 0.95rem;
+        }
+        
+        .view-toggle {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .view-toggle button {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .view-toggle button.active {
+            background: rgba(78, 205, 196, 0.3);
+            color: #4ecdc4;
+        }
+        
+        .picks-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px 20px;
+        }
+        
+        /* Timeline View */
+        .timeline-view {
+            display: none;
+        }
+        
+        .timeline-view.active {
+            display: block;
+        }
+        
+        .pick-entry {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .pick-number {
+            background: rgba(255,255,255,0.1);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        .pick-details {
+            flex: 1;
+        }
+        
+        .pick-card-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .pick-player {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        /* Players View */
+        .players-view {
+            display: none;
+        }
+        
+        .players-view.active {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .player-pool {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .player-pool.current-turn {
+            border-color: rgba(78, 205, 196, 0.5);
+            box-shadow: 0 0 15px rgba(78, 205, 196, 0.2);
+        }
+        
+        .player-pool-header {
+            padding: 12px 15px;
+            background: rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .player-pool-header h4 {
+            font-size: 0.95rem;
+        }
+        
+        .player-pool-header .pick-count {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        .player-pool-cards {
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .player-card {
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            background: rgba(255,255,255,0.03);
+            border-radius: 3px;
+            margin-bottom: 4px;
+        }
+        
+        /* Card Preview */
+        .card-preview {
+            position: fixed;
+            right: 20px;
+            top: 100px;
+            width: 250px;
+            z-index: 50;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .card-preview.active {
+            opacity: 1;
+        }
+        
+        .card-preview img {
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        /* Loading States */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #4ecdc4;
+            border-top-color: transparent;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0,0,0,0.9);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 1000;
+            transition: transform 0.3s;
+        }
+        
+        .toast.active {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .toast.success {
+            border-color: #4ecdc4;
+        }
+        
+        .toast.error {
+            border-color: #e74c3c;
+        }
+        
+        /* Utility */
+        .hidden {
+            display: none !important;
+        }
+        
+        .text-muted {
+            color: #888;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .mt-2 { margin-top: 20px; }
+        .mb-2 { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Room Setup Screen -->
+        <div class="room-setup" id="roomSetup">
+            <div class="room-setup-card">
+                <h2>🎴 Rotisserie Draft</h2>
+                <p>Create or join a draft room to start picking cards!</p>
+                <div class="room-actions">
+                    <div class="room-action-group">
+                        <button onclick="createRoom()">Create New Draft</button>
+                    </div>
+                    <div class="divider">or join existing</div>
+                    <div class="room-action-group">
+                        <input type="text" id="joinRoomInput" placeholder="ROOM CODE" maxlength="6"
+                               onkeyup="this.value = this.value.toUpperCase(); if(event.key === 'Enter') joinRoom();">
+                        <button onclick="joinRoom()" class="secondary">Join Draft</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <header>
+                <div class="logo">
+                    <h1>🎴 Rotisserie Draft</h1>
+                    <span id="cubeNameHeader" style="color: #888; font-size: 0.9rem; margin-left: 10px;"></span>
+                </div>
+                <div class="room-info">
+                    <span class="room-code" id="roomCodeDisplay">------</span>
+                    <button class="secondary small" onclick="copyRoomLink()">📋 Copy Link</button>
+                    <button class="secondary small" onclick="resetDraft()" id="resetDraftBtn" style="display: none;">↺ Reset Draft</button>
+                    <button class="secondary small" onclick="exportPools()" id="exportPoolsBtn" style="display: none;">📥 Export Pools</button>
+                    <button class="secondary small" onclick="leaveRoom()">Leave</button>
+                    <div class="sync-status">
+                        <div class="sync-dot" id="syncDot"></div>
+                        <span id="syncStatus">Connecting...</span>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Draft Setup Phase -->
+            <div class="draft-setup" id="draftSetup">
+                <h2>📋 Draft Setup</h2>
+                
+                <div class="setup-section">
+                    <h3>👥 Players</h3>
+                    <label>Your Name</label>
+                    <input type="text" id="playerName" placeholder="Enter your name" onchange="savePlayerName()">
+                    
+                    <label>Number of Players</label>
+                    <select id="playerCount" onchange="updatePlayerInputs()">
+                        <option value="2">2 Players</option>
+                        <option value="3">3 Players</option>
+                        <option value="4">4 Players</option>
+                        <option value="5">5 Players</option>
+                        <option value="6">6 Players</option>
+                        <option value="7">7 Players</option>
+                        <option value="8" selected>8 Players</option>
+                    </select>
+                    
+                    <label>Player Names (in draft order) <button class="small secondary" onclick="randomizePlayerOrder()" style="margin-left: 10px;">🎲 Randomize Order</button></label>
+                    <div class="player-inputs" id="playerInputs"></div>
+                </div>
+                
+                <div class="setup-section">
+                    <h3>📦 Cube List</h3>
+                    
+                    <label>Load from CubeCobra (recommended)</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <input type="text" id="cubeCobraUrl" placeholder="Cube ID or URL (e.g., arts&crafts)" style="flex: 1; margin-bottom: 0;">
+                        <button onclick="loadFromCubeCobra()" style="white-space: nowrap;">Load from CubeCobra</button>
+                    </div>
+                    
+                    <div class="divider" style="margin: 20px 0;">or paste manually</div>
+                    
+                    <label>Paste cube list (Draftmancer, Arena, or simple format)</label>
+                    <textarea id="cubeListInput" placeholder="Paste cube list here...
+
+Supports:
+- Draftmancer format with [Settings] header
+- Arena format: 1 Lightning Bolt (M10) 146
+- Simple format: Lightning Bolt"></textarea>
+                    <button onclick="loadCubeList()" class="secondary">Load from Text</button>
+                    <span id="cubeStatus" class="text-muted" style="margin-left: 15px;"></span>
+                </div>
+                
+                <div class="setup-section">
+                    <h3>⚙️ Draft Settings</h3>
+                    <label>Picks per Player</label>
+                    <input type="number" id="picksPerPlayer" value="45" min="1" max="100">
+                    
+                    <label>Switch to Double Picks After (0 = never)</label>
+                    <input type="number" id="doublePicksAfter" value="0" min="0" max="100">
+                </div>
+                
+                <button onclick="startDraft()" id="startDraftBtn" disabled>Start Draft</button>
+            </div>
+            
+            <!-- Draft Board -->
+            <div class="draft-board" id="draftBoard">
+                <div class="turn-banner" id="turnBanner">
+                    <h2 id="turnText">Waiting...</h2>
+                    <div class="pick-info" id="pickInfo">Pick 1 of 45</div>
+                </div>
+                
+                <div class="draft-content">
+                    <!-- Cube Panel -->
+                    <div class="cube-panel">
+                        <div class="cube-header">
+                            <h3>Available Cards (<span id="availableCount">0</span>)</h3>
+                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                                <select id="colorFilter" onchange="updateCubeList()" style="flex: 1; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; font-size: 0.8rem;">
+                                    <option value="">All Colors</option>
+                                    <option value="W">White</option>
+                                    <option value="U">Blue</option>
+                                    <option value="B">Black</option>
+                                    <option value="R">Red</option>
+                                    <option value="G">Green</option>
+                                    <option value="M">Multicolor</option>
+                                    <option value="C">Colorless</option>
+                                </select>
+                                <select id="sortBy" onchange="updateCubeList()" style="flex: 1; padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; font-size: 0.8rem;">
+                                    <option value="name">Sort: Name</option>
+                                    <option value="cmc">Sort: Mana Value</option>
+                                    <option value="color">Sort: Color</option>
+                                    <option value="type">Sort: Type</option>
+                                </select>
+                            </div>
+                            <div class="search-box">
+                                <input type="text" id="cardSearch" placeholder="Search cards..." 
+                                       oninput="handleSearch(this.value)"
+                                       onkeydown="handleSearchKeydown(event)">
+                                <button class="clear-btn" onclick="clearSearch()">×</button>
+                                <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
+                            </div>
+                        </div>
+                        <div class="cube-list" id="cubeList">
+                            <div class="loading">Loading cube...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Picks Panel -->
+                    <div class="picks-panel">
+                        <div class="picks-header">
+                            <h3>Draft Progress</h3>
+                            <div class="view-toggle">
+                                <button class="active" onclick="switchView('timeline', this)">Timeline</button>
+                                <button onclick="switchView('players', this)">By Player</button>
+                            </div>
+                        </div>
+                        <div class="picks-content">
+                            <div class="timeline-view active" id="timelineView">
+                                <p class="text-muted text-center">No picks yet</p>
+                            </div>
+                            <div class="players-view" id="playersView"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Card Preview -->
+        <div class="card-preview" id="cardPreview">
+            <img src="" alt="Card Preview" id="previewImage">
+        </div>
+        
+        <!-- Toast -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <script>
+        // ============================================================
+        // 🔥 FIREBASE CONFIG - PASTE YOUR CONFIG HERE
+        // ============================================================
+        const firebaseConfig = {
+        apiKey: "AIzaSyA4J59NJByT6lIWakeVfFjXxuWRES3DcEE",
+        authDomain: "draft-pool.firebaseapp.com",
+        databaseURL: "https://draft-pool-default-rtdb.firebaseio.com",
+        projectId: "draft-pool",
+        storageBucket: "draft-pool.firebasestorage.app",
+        messagingSenderId: "1095548846982",
+        appId: "1:1095548846982:web:81b4e51b771bf386706207"
+        };
+        // ============================================================
+        
+        // State
+        let state = {
+            phase: 'setup', // 'setup' or 'drafting'
+            players: [],
+            cube: [],           // Full cube with card data
+            cubeName: '',       // Name from CubeCobra
+            cubeSource: '',     // 'cubecobra' or 'manual'
+            cubeId: '',         // CubeCobra ID if loaded from there
+            picks: [],          // [{pickNumber, playerIndex, cardName, timestamp}]
+            picksPerPlayer: 45,
+            doublePicksAfter: 0,
+            currentPick: 0
+        };
+        
+        let roomCode = null;
+        let db = null;
+        let dbRef = null;
+        let playerName = '';
+        let cardDataCache = {};  // Cache Scryfall data
+        let autocompleteTimeout = null;
+        let selectedAutocompleteIndex = -1;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            playerName = localStorage.getItem('roto-player-name') || '';
+            document.getElementById('playerName').value = playerName;
+            
+            if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+                document.querySelector('.room-setup-card p').innerHTML = 
+                    '⚠️ <strong>Firebase not configured!</strong><br><br>' +
+                    'To use this app:<br>' +
+                    '1. Download this file<br>' +
+                    '2. Edit the firebaseConfig section<br>' +
+                    '3. Host on GitHub Pages<br><br>' +
+                    '<a href="https://console.firebase.google.com" target="_blank" style="color: #4ecdc4;">Open Firebase Console →</a>';
+                document.querySelectorAll('.room-actions button').forEach(btn => btn.disabled = true);
+                return;
+            }
+            
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            
+            // Check URL for room code (skip if in sandboxed iframe)
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlRoom = urlParams.get('room');
+                if (urlRoom) {
+                    document.getElementById('joinRoomInput').value = urlRoom.toUpperCase();
+                    joinRoom();
+                }
+            } catch (e) {
+                console.log('Cannot read URL params (sandboxed environment)');
+            }
+            
+            updatePlayerInputs();
+        });
+        
+        // Room Management
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+        
+        function createRoom() {
+            roomCode = generateRoomCode();
+            connectToRoom(roomCode);
+        }
+        
+        function joinRoom() {
+            const input = document.getElementById('joinRoomInput').value.trim().toUpperCase();
+            if (input.length < 4) {
+                showToast('Please enter a valid room code', 'error');
+                return;
+            }
+            roomCode = input;
+            connectToRoom(roomCode);
+        }
+        
+        function connectToRoom(code) {
+            roomCode = code;
+            
+            // Update URL (skip if in sandboxed iframe)
+            try {
+                const url = new URL(window.location);
+                url.searchParams.set('room', code);
+                window.history.replaceState({}, '', url);
+            } catch (e) {
+                console.log('Cannot update URL (sandboxed environment)');
+            }
+            
+            dbRef = db.ref('rotisserie/' + code);
+            
+            dbRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    state = {
+                        phase: data.phase || 'setup',
+                        players: data.players || [],
+                        cube: data.cube || [],
+                        cubeName: data.cubeName || '',
+                        cubeSource: data.cubeSource || '',
+                        cubeId: data.cubeId || '',
+                        picks: data.picks || [],
+                        picksPerPlayer: data.picksPerPlayer || 45,
+                        doublePicksAfter: data.doublePicksAfter || 0,
+                        currentPick: data.currentPick || 0
+                    };
+                    
+                    // Rebuild image cache from cube data
+                    state.cube.forEach(card => {
+                        if (card.image_normal) {
+                            cardDataCache[card.name] = { image: card.image_normal };
+                        }
+                    });
+                }
+                updateUI();
+                updateSyncStatus('connected');
+            }, (error) => {
+                console.error('Firebase error:', error);
+                updateSyncStatus('error');
+            });
+            
+            document.getElementById('roomSetup').style.display = 'none';
+            document.getElementById('mainContent').classList.add('active');
+            document.getElementById('roomCodeDisplay').textContent = code;
+        }
+        
+        function leaveRoom() {
+            if (!confirm('Leave this draft?')) return;
+            if (dbRef) dbRef.off();
+            roomCode = null;
+            dbRef = null;
+            
+            // Update URL (skip if in sandboxed iframe)
+            try {
+                const url = new URL(window.location);
+                url.searchParams.delete('room');
+                window.history.replaceState({}, '', url);
+            } catch (e) {
+                console.log('Cannot update URL (sandboxed environment)');
+            }
+            
+            document.getElementById('roomSetup').style.display = 'flex';
+            document.getElementById('mainContent').classList.remove('active');
+        }
+        
+        function copyRoomLink() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                showToast('Link copied!', 'success');
+            });
+        }
+        
+        function saveToFirebase() {
+            if (!dbRef) return;
+            dbRef.set(state);
+        }
+        
+        function updateSyncStatus(status) {
+            const dot = document.getElementById('syncDot');
+            const label = document.getElementById('syncStatus');
+            dot.className = 'sync-dot';
+            if (status === 'connected') {
+                dot.classList.add('connected');
+                label.textContent = 'Live';
+            } else {
+                label.textContent = 'Disconnected';
+            }
+        }
+        
+        // Player Setup
+        function savePlayerName() {
+            playerName = document.getElementById('playerName').value.trim();
+            localStorage.setItem('roto-player-name', playerName);
+        }
+        
+        function updatePlayerInputs() {
+            const count = parseInt(document.getElementById('playerCount').value);
+            const container = document.getElementById('playerInputs');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < count; i++) {
+                const div = document.createElement('div');
+                div.className = 'player-input';
+                div.innerHTML = `
+                    <span>${i + 1}.</span>
+                    <input type="text" id="player${i}" placeholder="Player ${i + 1}" 
+                           value="${state.players[i] || ''}"
+                           onchange="updatePlayerName(${i}, this.value)">
+                `;
+                container.appendChild(div);
+            }
+        }
+        
+        function updatePlayerName(index, name) {
+            while (state.players.length <= index) {
+                state.players.push('');
+            }
+            state.players[index] = name;
+            saveToFirebase();
+        }
+        
+        function randomizePlayerOrder() {
+            const count = parseInt(document.getElementById('playerCount').value);
+            const names = [];
+            
+            // Collect current names
+            for (let i = 0; i < count; i++) {
+                const input = document.getElementById(`player${i}`);
+                if (input && input.value.trim()) {
+                    names.push(input.value.trim());
+                }
+            }
+            
+            if (names.length < 2) {
+                showToast('Enter at least 2 player names first', 'error');
+                return;
+            }
+            
+            // Fisher-Yates shuffle
+            for (let i = names.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [names[i], names[j]] = [names[j], names[i]];
+            }
+            
+            // Update state and inputs
+            state.players = [...names];
+            while (state.players.length < count) {
+                state.players.push('');
+            }
+            
+            for (let i = 0; i < count; i++) {
+                const input = document.getElementById(`player${i}`);
+                if (input) {
+                    input.value = state.players[i] || '';
+                }
+            }
+            
+            saveToFirebase();
+            showToast('Player order randomized!', 'success');
+        }
+        
+        // Cube Loading
+        async function loadFromCubeCobra() {
+            const input = document.getElementById('cubeCobraUrl').value.trim();
+            if (!input) {
+                showToast('Please enter a CubeCobra cube ID or URL', 'error');
+                return;
+            }
+            
+            // Extract cube ID from URL or use as-is
+            let cubeId = input;
+            const urlMatch = input.match(/cubecobra\.com\/cube\/(?:list|overview|about)\/([^\/\?]+)/);
+            if (urlMatch) {
+                cubeId = urlMatch[1];
+            }
+            
+            document.getElementById('cubeStatus').textContent = 'Loading from CubeCobra...';
+            
+            try {
+                const response = await fetch(`https://cubecobra.com/cube/api/cubeJSON/${encodeURIComponent(cubeId)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Cube not found (${response.status})`);
+                }
+                
+                const data = await response.json();
+                
+                // Extract mainboard cards with full data
+                const mainboard = data.cards?.mainboard || [];
+                
+                if (mainboard.length === 0) {
+                    throw new Error('No cards found in cube mainboard');
+                }
+                
+                state.cube = mainboard.map(card => ({
+                    name: card.name,
+                    colors: card.colors || [],
+                    type_line: card.type_line || '',
+                    cmc: card.cmc || 0,
+                    image_small: card.image_small || '',
+                    image_normal: card.image_normal || '',
+                    tags: card.tags || [],
+                    picked: false,
+                    pickedBy: null
+                }));
+                
+                // Cache images for preview
+                state.cube.forEach(card => {
+                    if (card.image_normal) {
+                        cardDataCache[card.name] = { image: card.image_normal };
+                    }
+                });
+                
+                state.cubeName = data.name || cubeId;
+                state.cubeSource = 'cubecobra';
+                state.cubeId = cubeId;
+                
+                saveToFirebase();
+                
+                document.getElementById('cubeStatus').textContent = `✓ ${state.cube.length} cards loaded from "${state.cubeName}"`;
+                document.getElementById('startDraftBtn').disabled = false;
+                showToast(`Loaded ${state.cube.length} cards from CubeCobra!`, 'success');
+                
+            } catch (error) {
+                console.error('CubeCobra error:', error);
+                document.getElementById('cubeStatus').textContent = '';
+                showToast(`Failed to load cube: ${error.message}`, 'error');
+            }
+        }
+        
+        function loadCubeList() {
+            const text = document.getElementById('cubeListInput').value;
+            const cards = parseCubeList(text);
+            
+            if (cards.length === 0) {
+                showToast('No cards found in input', 'error');
+                return;
+            }
+            
+            state.cube = cards.map(name => ({ name, picked: false, pickedBy: null }));
+            saveToFirebase();
+            
+            document.getElementById('cubeStatus').textContent = `✓ ${cards.length} cards loaded`;
+            document.getElementById('startDraftBtn').disabled = false;
+            showToast(`Loaded ${cards.length} cards!`, 'success');
+        }
+        
+        function parseCubeList(text) {
+            const lines = text.split('\n');
+            const cards = [];
+            
+            for (const line of lines) {
+                let cleaned = line.trim();
+                if (!cleaned) continue;
+                if (cleaned.startsWith('[') || cleaned.startsWith('{') || cleaned.startsWith('#') || cleaned.startsWith('//')) continue;
+                if (cleaned.toLowerCase() === 'deck' || cleaned.toLowerCase() === 'sideboard') continue;
+                
+                // Remove quantity prefix
+                cleaned = cleaned.replace(/^\d+x?\s+/, '');
+                // Remove set code suffix
+                cleaned = cleaned.replace(/\s*\([A-Z0-9]+\)\s*\d*$/, '');
+                cleaned = cleaned.trim();
+                
+                if (cleaned.length > 0) {
+                    cards.push(cleaned);
+                }
+            }
+            
+            return cards;
+        }
+        
+        // Draft Logic
+        function startDraft() {
+            const playerCount = parseInt(document.getElementById('playerCount').value);
+            
+            // Validate players
+            for (let i = 0; i < playerCount; i++) {
+                const input = document.getElementById(`player${i}`);
+                if (!input.value.trim()) {
+                    showToast(`Please enter name for Player ${i + 1}`, 'error');
+                    return;
+                }
+                state.players[i] = input.value.trim();
+            }
+            state.players = state.players.slice(0, playerCount);
+            
+            if (state.cube.length === 0) {
+                showToast('Please load a cube first', 'error');
+                return;
+            }
+            
+            state.picksPerPlayer = parseInt(document.getElementById('picksPerPlayer').value) || 45;
+            state.doublePicksAfter = parseInt(document.getElementById('doublePicksAfter').value) || 0;
+            state.phase = 'drafting';
+            state.picks = [];
+            state.currentPick = 0;
+            
+            // Reset cube
+            state.cube.forEach(card => {
+                card.picked = false;
+                card.pickedBy = null;
+            });
+            
+            saveToFirebase();
+            showToast('Draft started!', 'success');
+        }
+        
+        function getCurrentDrafter() {
+            const playerCount = state.players.length;
+            const totalPicks = state.picksPerPlayer * playerCount;
+            
+            if (state.currentPick >= totalPicks) return -1; // Draft complete
+            
+            // Snake draft: 0,1,2,3,4,5,6,7,7,6,5,4,3,2,1,0,0,1,2...
+            const roundSize = playerCount * 2;
+            const positionInRound = state.currentPick % roundSize;
+            
+            if (positionInRound < playerCount) {
+                return positionInRound;
+            } else {
+                return roundSize - positionInRound - 1;
+            }
+        }
+        
+        function isDoublePick() {
+            if (state.doublePicksAfter === 0) return false;
+            const pickNumber = state.currentPick + 1;
+            return pickNumber > state.doublePicksAfter;
+        }
+        
+        function makePick(cardName) {
+            const currentDrafter = getCurrentDrafter();
+            if (currentDrafter === -1) {
+                showToast('Draft is complete!', 'error');
+                return;
+            }
+            
+            // Check if it's your turn
+            const myIndex = state.players.findIndex(p => p.toLowerCase() === playerName.toLowerCase());
+            if (myIndex !== currentDrafter) {
+                showToast(`It's ${state.players[currentDrafter]}'s turn!`, 'error');
+                return;
+            }
+            
+            // Find and mark card as picked
+            const cardIndex = state.cube.findIndex(c => 
+                c.name.toLowerCase() === cardName.toLowerCase() && !c.picked
+            );
+            
+            if (cardIndex === -1) {
+                showToast('Card not available', 'error');
+                return;
+            }
+            
+            state.cube[cardIndex].picked = true;
+            state.cube[cardIndex].pickedBy = state.players[currentDrafter];
+            
+            state.picks.push({
+                pickNumber: state.currentPick + 1,
+                playerIndex: currentDrafter,
+                playerName: state.players[currentDrafter],
+                cardName: cardName,
+                timestamp: Date.now()
+            });
+            
+            state.currentPick++;
+            
+            saveToFirebase();
+            clearSearch();
+            showToast(`Picked: ${cardName}`, 'success');
+        }
+        
+        // UI Updates
+        function updateUI() {
+            // Update header with cube name
+            const cubeNameHeader = document.getElementById('cubeNameHeader');
+            if (cubeNameHeader && state.cubeName) {
+                cubeNameHeader.textContent = `— ${state.cubeName}`;
+            }
+            
+            // Show/hide draft controls
+            const resetBtn = document.getElementById('resetDraftBtn');
+            const exportBtn = document.getElementById('exportPoolsBtn');
+            if (resetBtn) resetBtn.style.display = state.phase === 'drafting' ? 'inline-block' : 'none';
+            if (exportBtn) exportBtn.style.display = (state.phase === 'drafting' && state.picks.length > 0) ? 'inline-block' : 'none';
+            
+            if (state.phase === 'setup') {
+                document.getElementById('draftSetup').style.display = 'block';
+                document.getElementById('draftBoard').classList.remove('active');
+                
+                // Update setup fields
+                document.getElementById('playerCount').value = state.players.length || 8;
+                document.getElementById('picksPerPlayer').value = state.picksPerPlayer;
+                document.getElementById('doublePicksAfter').value = state.doublePicksAfter;
+                updatePlayerInputs();
+                
+                if (state.cube.length > 0) {
+                    const cubeName = state.cubeName ? `"${state.cubeName}"` : 'cube';
+                    const sourceInfo = state.cubeSource === 'cubecobra' ? ` from CubeCobra` : '';
+                    document.getElementById('cubeStatus').textContent = `✓ ${state.cube.length} cards loaded${sourceInfo}`;
+                    document.getElementById('startDraftBtn').disabled = false;
+                    
+                    // Pre-fill the CubeCobra input if we have an ID
+                    if (state.cubeId) {
+                        document.getElementById('cubeCobraUrl').value = state.cubeId;
+                    }
+                }
+            } else {
+                document.getElementById('draftSetup').style.display = 'none';
+                document.getElementById('draftBoard').classList.add('active');
+                
+                updateTurnBanner();
+                updateCubeList();
+                updatePicksView();
+            }
+        }
+        
+        function updateTurnBanner() {
+            const banner = document.getElementById('turnBanner');
+            const turnText = document.getElementById('turnText');
+            const pickInfo = document.getElementById('pickInfo');
+            
+            const currentDrafter = getCurrentDrafter();
+            const totalPicks = state.picksPerPlayer * state.players.length;
+            
+            if (currentDrafter === -1) {
+                banner.className = 'turn-banner not-your-turn';
+                turnText.textContent = '🎉 Draft Complete!';
+                pickInfo.textContent = `${state.picks.length} cards drafted`;
+                return;
+            }
+            
+            const drafterName = state.players[currentDrafter];
+            const isMyTurn = drafterName.toLowerCase() === playerName.toLowerCase();
+            
+            banner.className = isMyTurn ? 'turn-banner' : 'turn-banner not-your-turn';
+            turnText.textContent = isMyTurn ? "🎯 Your Pick!" : `⏳ ${drafterName}'s Turn`;
+            pickInfo.textContent = `Pick ${state.currentPick + 1} of ${totalPicks}`;
+        }
+        
+        function updateCubeList() {
+            const container = document.getElementById('cubeList');
+            const availableCount = document.getElementById('availableCount');
+            const colorFilter = document.getElementById('colorFilter')?.value || '';
+            const sortBy = document.getElementById('sortBy')?.value || 'name';
+            
+            let filtered = [...state.cube];
+            
+            // Apply color filter
+            if (colorFilter) {
+                filtered = filtered.filter(card => {
+                    const colors = card.colors || [];
+                    if (colorFilter === 'M') return colors.length > 1;
+                    if (colorFilter === 'C') return colors.length === 0;
+                    return colors.length === 1 && colors[0] === colorFilter;
+                });
+            }
+            
+            // Sort
+            filtered.sort((a, b) => {
+                // Always put picked cards at the end
+                if (a.picked !== b.picked) return a.picked ? 1 : -1;
+                
+                switch (sortBy) {
+                    case 'cmc':
+                        return (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name);
+                    case 'color':
+                        return getColorSortOrder(a.colors) - getColorSortOrder(b.colors) || a.name.localeCompare(b.name);
+                    case 'type':
+                        return (a.type_line || '').localeCompare(b.type_line || '') || a.name.localeCompare(b.name);
+                    default:
+                        return a.name.localeCompare(b.name);
+                }
+            });
+            
+            const available = state.cube.filter(c => !c.picked);
+            availableCount.textContent = available.length;
+            
+            container.innerHTML = filtered.map(card => {
+                const colorClass = getColorClass(card.colors);
+                const cmcDisplay = card.cmc !== undefined ? `<span style="color: #888; font-size: 0.75rem; margin-left: 8px;">${card.cmc}</span>` : '';
+                return `
+                <div class="card-item ${card.picked ? 'picked' : ''}" 
+                     style="position: relative; padding-left: 16px;"
+                     onclick="${card.picked ? '' : `makePick('${card.name.replace(/'/g, "\\'")}')`}"
+                     onmouseenter="showCardPreview('${card.name.replace(/'/g, "\\'")}')"
+                     onmouseleave="hideCardPreview()">
+                    <div class="color-indicator ${colorClass}"></div>
+                    <span class="card-name">${card.name}${cmcDisplay}</span>
+                    ${card.picked ? `<span class="picked-by">${card.pickedBy}</span>` : ''}
+                </div>
+            `}).join('');
+        }
+        
+        function getColorSortOrder(colors) {
+            if (!colors || colors.length === 0) return 6; // Colorless last
+            if (colors.length > 1) return 5; // Multicolor before colorless
+            const order = { 'W': 0, 'U': 1, 'B': 2, 'R': 3, 'G': 4 };
+            return order[colors[0]] ?? 5;
+        }
+        
+        function getColorClass(colors) {
+            if (!colors || colors.length === 0) return 'color-C';
+            if (colors.length > 1) return 'color-M';
+            const c = colors[0];
+            if (c === 'W') return 'color-W';
+            if (c === 'U') return 'color-U';
+            if (c === 'B') return 'color-B';
+            if (c === 'R') return 'color-R';
+            if (c === 'G') return 'color-G';
+            return 'color-C';
+        }
+        
+        function updatePicksView() {
+            updateTimelineView();
+            updatePlayersView();
+        }
+        
+        function updateTimelineView() {
+            const container = document.getElementById('timelineView');
+            
+            if (state.picks.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No picks yet</p>';
+                return;
+            }
+            
+            const sorted = [...state.picks].reverse();
+            container.innerHTML = sorted.map(pick => `
+                <div class="pick-entry">
+                    <div class="pick-number">#${pick.pickNumber}</div>
+                    <div class="pick-details">
+                        <div class="pick-card-name">${pick.cardName}</div>
+                        <div class="pick-player">${pick.playerName}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updatePlayersView() {
+            const container = document.getElementById('playersView');
+            const currentDrafter = getCurrentDrafter();
+            
+            container.innerHTML = state.players.map((player, index) => {
+                const playerPicks = state.picks.filter(p => p.playerIndex === index);
+                const isCurrent = index === currentDrafter;
+                
+                return `
+                    <div class="player-pool ${isCurrent ? 'current-turn' : ''}">
+                        <div class="player-pool-header">
+                            <h4>${player} ${isCurrent ? '⏳' : ''}</h4>
+                            <span class="pick-count">${playerPicks.length} picks</span>
+                        </div>
+                        <div class="player-pool-cards">
+                            ${playerPicks.length === 0 
+                                ? '<p class="text-muted">No picks yet</p>'
+                                : playerPicks.map(p => `<div class="player-card">${p.cardName}</div>`).join('')
+                            }
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function switchView(view, btn) {
+            document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            document.getElementById('timelineView').classList.toggle('active', view === 'timeline');
+            document.getElementById('playersView').classList.toggle('active', view === 'players');
+        }
+        
+        // Card Search & Autocomplete
+        async function handleSearch(query) {
+            if (autocompleteTimeout) clearTimeout(autocompleteTimeout);
+            
+            if (query.length < 2) {
+                hideAutocomplete();
+                return;
+            }
+            
+            autocompleteTimeout = setTimeout(() => searchCards(query), 150);
+        }
+        
+        function searchCards(query) {
+            const dropdown = document.getElementById('autocompleteDropdown');
+            const queryLower = query.toLowerCase();
+            
+            // Filter cube cards
+            const matches = state.cube
+                .filter(card => !card.picked && card.name.toLowerCase().includes(queryLower))
+                .slice(0, 15);
+            
+            if (matches.length === 0) {
+                hideAutocomplete();
+                return;
+            }
+            
+            dropdown.innerHTML = matches.map((card, i) => `
+                <div class="autocomplete-item ${card.picked ? 'picked' : ''}" 
+                     onclick="makePick('${card.name.replace(/'/g, "\\'")}')"
+                     onmouseenter="showCardPreview('${card.name.replace(/'/g, "\\'")}')">
+                    <span>${card.name}</span>
+                </div>
+            `).join('');
+            
+            dropdown.classList.add('active');
+            selectedAutocompleteIndex = -1;
+        }
+        
+        function handleSearchKeydown(event) {
+            const dropdown = document.getElementById('autocompleteDropdown');
+            const items = dropdown.querySelectorAll('.autocomplete-item:not(.picked)');
+            
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                selectedAutocompleteIndex = Math.min(selectedAutocompleteIndex + 1, items.length - 1);
+                updateAutocompleteSelection(items);
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                selectedAutocompleteIndex = Math.max(selectedAutocompleteIndex - 1, 0);
+                updateAutocompleteSelection(items);
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                if (selectedAutocompleteIndex >= 0 && items[selectedAutocompleteIndex]) {
+                    items[selectedAutocompleteIndex].click();
+                }
+            } else if (event.key === 'Escape') {
+                hideAutocomplete();
+            }
+        }
+        
+        function updateAutocompleteSelection(items) {
+            items.forEach((item, i) => {
+                item.classList.toggle('selected', i === selectedAutocompleteIndex);
+            });
+        }
+        
+        function hideAutocomplete() {
+            document.getElementById('autocompleteDropdown').classList.remove('active');
+        }
+        
+        function clearSearch() {
+            document.getElementById('cardSearch').value = '';
+            hideAutocomplete();
+        }
+        
+        // Card Preview
+        async function showCardPreview(cardName) {
+            const preview = document.getElementById('cardPreview');
+            const img = document.getElementById('previewImage');
+            
+            // Check cache
+            if (cardDataCache[cardName]) {
+                img.src = cardDataCache[cardName].image;
+                preview.classList.add('active');
+                return;
+            }
+            
+            // Fetch from Scryfall
+            try {
+                const response = await fetch(
+                    `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`,
+                    { headers: { 'Accept': 'application/json' } }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const imageUrl = data.image_uris?.normal || data.card_faces?.[0]?.image_uris?.normal;
+                    
+                    if (imageUrl) {
+                        cardDataCache[cardName] = { image: imageUrl, data };
+                        img.src = imageUrl;
+                        preview.classList.add('active');
+                    }
+                }
+            } catch (e) {
+                console.error('Scryfall error:', e);
+            }
+        }
+        
+        function hideCardPreview() {
+            document.getElementById('cardPreview').classList.remove('active');
+        }
+        
+        // Toast Notifications
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} active`;
+            
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
+        }
+        
+        // Reset Draft
+        function resetDraft() {
+            if (!confirm('Reset the draft? This will clear all picks and return to setup.')) return;
+            
+            state.phase = 'setup';
+            state.picks = [];
+            state.currentPick = 0;
+            
+            // Reset cube picked status
+            state.cube.forEach(card => {
+                card.picked = false;
+                card.pickedBy = null;
+            });
+            
+            saveToFirebase();
+            showToast('Draft reset!', 'success');
+        }
+        
+        // Export Pools
+        function exportPools() {
+            let output = `# Rotisserie Draft Results\n`;
+            output += `# Cube: ${state.cubeName || 'Unknown'}\n`;
+            output += `# Date: ${new Date().toLocaleDateString()}\n\n`;
+            
+            state.players.forEach((player, index) => {
+                const playerPicks = state.picks
+                    .filter(p => p.playerIndex === index)
+                    .map(p => p.cardName);
+                
+                output += `## ${player} (${playerPicks.length} cards)\n`;
+                playerPicks.sort().forEach(card => {
+                    output += `1 ${card}\n`;
+                });
+                output += `\n`;
+            });
+            
+            // Create download
+            const blob = new Blob([output], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rotisserie-draft-${roomCode}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('Pools exported!', 'success');
+        }
+    </script>
+</body>
+</html>
