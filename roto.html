@@ -1378,6 +1378,81 @@
         
         .mt-2 { margin-top: 20px; }
         .mb-2 { margin-bottom: 20px; }
+        /* Hate-draft + multi-deck styling */
+        .turn-banner.hate-turn {
+            border: 1px solid rgba(239, 68, 68, 0.6);
+            box-shadow: 0 0 18px rgba(239, 68, 68, 0.25);
+        }
+        .pick-tag {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .pick-tag.hate-tag {
+            background: rgba(239, 68, 68, 0.18);
+            color: #fca5a5;
+        }
+        .pick-entry.hate-entry {
+            border-left: 2px solid rgba(239, 68, 68, 0.5);
+        }
+        .deck-group {
+            margin-top: 8px;
+        }
+        .deck-group-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            padding: 4px 2px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 4px;
+        }
+        .deck-group.hate-group .deck-group-label {
+            color: #fca5a5;
+            border-bottom-color: rgba(239, 68, 68, 0.3);
+        }
+        .player-pool.exile-pool {
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            background: rgba(239, 68, 68, 0.06);
+        }
+        .player-pool.exile-pool .player-pool-header h4 {
+            color: #fca5a5;
+        }
+        .exile-hater {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            margin-left: 6px;
+            font-style: italic;
+        }
+        .picked-by.exiled {
+            color: #fca5a5;
+        }
+        .draft-size-info {
+            margin-top: 12px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            line-height: 1.35;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+        }
+        .draft-size-info.ok {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.4);
+            color: #bbf7d0;
+        }
+        .draft-size-info.over {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.5);
+            color: #fecaca;
+        }
     </style>
 </head>
 <body>
@@ -1474,11 +1549,33 @@ Supports:
                 
                 <div class="setup-section">
                     <h3>⚙️ Draft Settings</h3>
-                    <label>Picks per Player</label>
-                    <input type="number" id="picksPerPlayer" value="45" min="1" max="100">
+                    <label>Picks per Deck</label>
+                    <input type="number" id="picksPerPlayer" value="45" min="1" max="100" oninput="updateDraftSizeInfo()">
                     
-                    <label>Switch to Double Picks After (0 = never)</label>
-                    <input type="number" id="doublePicksAfter" value="0" min="0" max="100">
+                    <label>Decks per Player</label>
+                    <select id="decksPerPlayer" onchange="updateDraftSizeInfo()">
+                        <option value="1" selected>1 (auto)</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
+                    
+                    <label style="display:flex; align-items:center; gap:8px; margin-top:10px; cursor:pointer;"
+                           title="Inserts a round of 'hate' picks (remove a card to deny opponents — not added to your deck) after each deck round.">
+                        <input type="checkbox" id="hateDraftEnabled" style="width:auto;" onchange="updateDraftSizeInfo()">
+                        Hate Draft Picks
+                    </label>
+                    <span class="text-muted" style="font-size:0.78rem; display:block; margin-top:2px;">
+                        Adds an interleaved hate-pick round per deck round (e.g. P1-Deck1, P2-Deck1, P1-Hate, P2-Hate, …).
+                    </span>
+                    
+                    <label style="margin-top:10px;">Stop Hate / Double Picks After Round (0 = never)</label>
+                    <input type="number" id="doublePicksAfter" value="0" min="0" max="100" oninput="updateDraftSizeInfo()">
+                    <span class="text-muted" style="font-size:0.78rem; display:block; margin-top:2px;">
+                        Round count (out of "Picks per Deck") after which each turn takes 2 cards (faster back half) and hate picks stop — e.g. 23 of 45 flips at the halfway mark.
+                    </span>
+                    
+                    <div id="draftSizeInfo" class="draft-size-info"></div>
                 </div>
                 
                 <button onclick="startDraft()" id="startDraftBtn" disabled>Start Draft</button>
@@ -1685,6 +1782,9 @@ Supports:
             picks: [],          // [{pickNumber, playerIndex, cardName, timestamp}]
             picksPerPlayer: 45,
             doublePicksAfter: 0,
+            decksPerPlayer: 1,
+            hateDraftEnabled: false,
+            draftOrder: [],     // [{player, type:'deck'|'hate', deck}] precomputed pick sequence
             currentPick: 0,
             // New features
             chat: [],           // [{playerName, message, timestamp}]
@@ -1815,6 +1915,9 @@ Supports:
                         picks: data.picks || [],
                         picksPerPlayer: data.picksPerPlayer || 45,
                         doublePicksAfter: data.doublePicksAfter || 0,
+                        decksPerPlayer: data.decksPerPlayer || 1,
+                        hateDraftEnabled: data.hateDraftEnabled || false,
+                        draftOrder: data.draftOrder || [],
                         currentPick: data.currentPick || 0,
                         chat: data.chat || [],
                         timerEnabled: data.timerEnabled || false,
@@ -1979,6 +2082,7 @@ Supports:
                 }
             }
             
+            updateDraftSizeInfo();
             saveToFirebase();
         }
         
@@ -2311,6 +2415,17 @@ Supports:
             
             state.picksPerPlayer = parseInt(document.getElementById('picksPerPlayer').value) || 45;
             state.doublePicksAfter = parseInt(document.getElementById('doublePicksAfter').value) || 0;
+            state.decksPerPlayer = parseInt(document.getElementById('decksPerPlayer').value) || 1;
+            state.hateDraftEnabled = document.getElementById('hateDraftEnabled').checked;
+            state.draftOrder = generateDraftOrder(playerCount, state.decksPerPlayer, state.hateDraftEnabled, state.picksPerPlayer, state.doublePicksAfter);
+
+            // Don't start a draft that would run the pool dry
+            if (state.draftOrder.length > state.cube.length) {
+                showToast(`This setup needs ${state.draftOrder.length} cards but the cube only has ${state.cube.length}. Lower picks/decks, fewer players, or turn off hate.`, 'error');
+                state.draftOrder = [];
+                return;
+            }
+
             state.phase = 'drafting';
             state.picks = [];
             state.currentPick = 0;
@@ -2319,6 +2434,8 @@ Supports:
             state.cube.forEach(card => {
                 card.picked = false;
                 card.pickedBy = null;
+                card.isHate = false;
+                card.deckIndex = null;
             });
             
             saveToFirebase();
@@ -2328,20 +2445,101 @@ Supports:
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         
-        function getCurrentDrafter() {
+        // Build the full pick sequence as an explicit array of slots.
+        // Each slot: { player: <index>, type: 'deck'|'hate', deck: <0-based deck index|null> }
+        // Snake reverses player order every macro-round. Hate rounds (if enabled) are
+        // inserted after each deck group — and once per round when there's a single deck —
+        // e.g. 2p/2decks/hate: P1D1, P2D1, P1-Hate, P2-Hate, P1D2, P2D2.
+        function generateDraftOrder(playerCount, decksPerPlayer, hateEnabled, picksPerDeck, doubleAfter) {
+            const order = [];
+            const D = Math.max(1, decksPerPlayer || 1);
+            const K = picksPerDeck;
+            const mark = doubleAfter || 0; // 0 = never double / hate runs the whole draft
+            let drafted = 0;               // cards drafted per deck (all decks advance in lockstep)
+            let r = 0;
+            while (drafted < K) {
+                const forward = (r % 2 === 0);
+                const seats = forward
+                    ? Array.from({ length: playerCount }, (_, i) => i)
+                    : Array.from({ length: playerCount }, (_, i) => playerCount - 1 - i);
+                // Past the mark: each turn takes 2 cards (faster) AND hate stops.
+                const doubling = mark > 0 && drafted >= mark;
+                const take = Math.min(doubling ? 2 : 1, K - drafted); // deck cards per player this round
+                const hateThisRound = hateEnabled && !doubling;
+                for (let d = 0; d < D; d++) {
+                    seats.forEach(p => {
+                        for (let k = 0; k < take; k++) order.push({ player: p, type: 'deck', deck: d });
+                    });
+                    if (hateThisRound && (d < D - 1 || D === 1)) {
+                        seats.forEach(p => order.push({ player: p, type: 'hate', deck: null }));
+                    }
+                }
+                drafted += take;
+                r++;
+            }
+            return order;
+        }
+
+        // Returns the current slot {player, type, deck} or null when the draft is complete.
+        function getCurrentSlot() {
+            if (state.draftOrder && state.draftOrder.length > 0) {
+                if (state.currentPick >= state.draftOrder.length) return null;
+                return state.draftOrder[state.currentPick];
+            }
+            // Fallback for older rooms saved before the draftOrder field existed
             const playerCount = state.players.length;
             const totalPicks = state.picksPerPlayer * playerCount;
-            
-            if (state.currentPick >= totalPicks) return -1; // Draft complete
-            
-            // Snake draft: 0,1,2,3,4,5,6,7,7,6,5,4,3,2,1,0,0,1,2...
+            if (state.currentPick >= totalPicks) return null;
             const roundSize = playerCount * 2;
             const positionInRound = state.currentPick % roundSize;
-            
-            if (positionInRound < playerCount) {
-                return positionInRound;
+            const player = positionInRound < playerCount ? positionInRound : roundSize - positionInRound - 1;
+            return { player, type: 'deck', deck: 0 };
+        }
+
+        function getTotalPicks() {
+            return (state.draftOrder && state.draftOrder.length > 0)
+                ? state.draftOrder.length
+                : state.picksPerPlayer * state.players.length;
+        }
+
+        function getCurrentDrafter() {
+            const slot = getCurrentSlot();
+            return slot ? slot.player : -1;
+        }
+
+        // How many cards a given setup will consume (deck picks + hate picks).
+        // total = K * P * (D + H), where H = hate rounds per macro-round
+        // (1 when D===1, else D-1; 0 when hate is off).
+        function computeDraftSize() {
+            const playerCount = parseInt(document.getElementById('playerCount')?.value) || 0;
+            const K = parseInt(document.getElementById('picksPerPlayer')?.value) || 0;
+            const D = parseInt(document.getElementById('decksPerPlayer')?.value) || 1;
+            const hateOn = !!document.getElementById('hateDraftEnabled')?.checked;
+            const mark = parseInt(document.getElementById('doublePicksAfter')?.value) || 0;
+            const Hgroups = (D === 1 ? 1 : D - 1);           // hate groups per round while hate is active
+            const hateRounds = hateOn ? (mark > 0 ? Math.min(mark, K) : K) : 0;
+            const deckCards = K * playerCount * D;
+            const hateCards = hateRounds * playerCount * Hgroups;
+            return { playerCount, K, D, hateOn, mark, hateRounds, deckCards, hateCards, total: deckCards + hateCards };
+        }
+
+        function updateDraftSizeInfo() {
+            const el = document.getElementById('draftSizeInfo');
+            if (!el) return;
+            const s = computeDraftSize();
+            const cubeSize = (state.cube && state.cube.length) || 0;
+            const breakdown = s.hateOn
+                ? `<strong>${s.total}</strong> cards needed (${s.deckCards} deck + ${s.hateCards} hate${s.mark > 0 ? `; hate stops &amp; picks double after round ${s.mark}` : ''})`
+                : `<strong>${s.total}</strong> cards needed${s.mark > 0 ? ` (picks double after round ${s.mark})` : ''}`;
+            if (!cubeSize) {
+                el.className = 'draft-size-info';
+                el.innerHTML = `📊 ${breakdown}. Load a cube to check against its size.`;
+            } else if (s.total > cubeSize) {
+                el.className = 'draft-size-info over';
+                el.innerHTML = `⚠️ ${breakdown}, but your cube has only <strong>${cubeSize}</strong> — short by <strong>${s.total - cubeSize}</strong>. Lower picks/decks, fewer players, or turn off hate.`;
             } else {
-                return roundSize - positionInRound - 1;
+                el.className = 'draft-size-info ok';
+                el.innerHTML = `✓ ${breakdown}. Cube has ${cubeSize} (${cubeSize - s.total} to spare).`;
             }
         }
         
@@ -2375,14 +2573,21 @@ Supports:
                 return;
             }
             
+            const slot = getCurrentSlot() || { type: 'deck', deck: 0 };
+            const isHate = slot.type === 'hate';
+
             state.cube[cardIndex].picked = true;
             state.cube[cardIndex].pickedBy = state.players[currentDrafter];
+            state.cube[cardIndex].isHate = isHate;
+            state.cube[cardIndex].deckIndex = isHate ? null : (slot.deck || 0);
             
             state.picks.push({
                 pickNumber: state.currentPick + 1,
                 playerIndex: currentDrafter,
                 playerName: state.players[currentDrafter],
                 cardName: cardName,
+                type: slot.type,                              // 'deck' | 'hate'
+                deckIndex: isHate ? null : (slot.deck || 0),  // 0-based deck this pick goes to
                 timestamp: Date.now()
             });
             
@@ -2390,7 +2595,7 @@ Supports:
             
             saveToFirebase();
             clearSearch();
-            showToast(`Picked: ${cardName}`, 'success');
+            showToast(isHate ? `🗡️ Hate-drafted: ${cardName}` : `Picked: ${cardName}`, 'success');
         }
         
         // UI Updates
@@ -2419,6 +2624,10 @@ Supports:
                 }
                 document.getElementById('picksPerPlayer').value = state.picksPerPlayer;
                 document.getElementById('doublePicksAfter').value = state.doublePicksAfter;
+                const decksSel = document.getElementById('decksPerPlayer');
+                if (decksSel) decksSel.value = state.decksPerPlayer || 1;
+                const hateChk = document.getElementById('hateDraftEnabled');
+                if (hateChk) hateChk.checked = !!state.hateDraftEnabled;
                 updatePlayerInputs();
                 
                 if (state.cube.length > 0) {
@@ -2432,6 +2641,7 @@ Supports:
                         document.getElementById('cubeCobraUrl').value = state.cubeId;
                     }
                 }
+                updateDraftSizeInfo();
             } else {
                 // Check if we're transitioning to draft view
                 const wasSetup = document.getElementById('draftSetup').style.display !== 'none';
@@ -2456,8 +2666,9 @@ Supports:
             const turnText = document.getElementById('turnText');
             const pickInfo = document.getElementById('pickInfo');
             
-            const currentDrafter = getCurrentDrafter();
-            const totalPicks = state.picksPerPlayer * state.players.length;
+            const slot = getCurrentSlot();
+            const currentDrafter = slot ? slot.player : -1;
+            const totalPicks = getTotalPicks();
             
             if (currentDrafter === -1) {
                 banner.className = 'turn-banner not-your-turn';
@@ -2468,10 +2679,17 @@ Supports:
             
             const drafterName = state.players[currentDrafter];
             const isMyTurn = drafterName.toLowerCase() === playerName.toLowerCase();
+            const isHate = slot.type === 'hate';
             
-            banner.className = isMyTurn ? 'turn-banner' : 'turn-banner not-your-turn';
-            turnText.textContent = isMyTurn ? "🎯 Your Pick!" : `⏳ ${drafterName}'s Turn`;
-            pickInfo.textContent = `Pick ${state.currentPick + 1} of ${totalPicks}`;
+            banner.className = (isMyTurn ? 'turn-banner' : 'turn-banner not-your-turn') + (isHate ? ' hate-turn' : '');
+            if (isHate) {
+                turnText.textContent = isMyTurn ? "🗡️ Your Hate Pick! (deny a card)" : `🗡️ ${drafterName}'s Hate Pick`;
+            } else {
+                const deckTag = (state.decksPerPlayer > 1) ? ` — Deck ${slot.deck + 1}` : '';
+                turnText.textContent = (isMyTurn ? "🎯 Your Pick!" : `⏳ ${drafterName}'s Turn`) + deckTag;
+            }
+            const kind = isHate ? ' • hate' : (state.decksPerPlayer > 1 ? ` • deck ${slot.deck + 1}` : '');
+            pickInfo.textContent = `Pick ${state.currentPick + 1} of ${totalPicks}${kind}`;
         }
         
         function updateCubeList() {
@@ -2551,7 +2769,7 @@ Supports:
                      onmouseleave="hideCardPreview()">
                     <div class="color-indicator ${colorClass}"></div>
                     <span class="card-name">${card.name}${statDisplay}</span>
-                    ${card.picked ? `<span class="picked-by">${card.pickedBy}</span>` : ''}
+                    ${card.picked ? `<span class="picked-by${card.isHate ? ' exiled' : ''}">${card.isHate ? '🗡️ exiled' : card.pickedBy}</span>` : ''}
                 </div>
             `}).join('');
         }
@@ -2593,8 +2811,13 @@ Supports:
             }
             
             const sorted = [...state.picks].reverse();
-            container.innerHTML = sorted.map(pick => `
-                <div class="pick-entry">
+            container.innerHTML = sorted.map(pick => {
+                const isHate = pick.type === 'hate';
+                const tag = isHate
+                    ? ' <span class="pick-tag hate-tag">🗡️ HATE</span>'
+                    : ((state.decksPerPlayer > 1 && pick.deckIndex != null) ? ` <span class="pick-tag">Deck ${pick.deckIndex + 1}</span>` : '');
+                return `
+                <div class="pick-entry${isHate ? ' hate-entry' : ''}">
                     <div class="pick-number">#${pick.pickNumber}</div>
                     <div class="pick-details">
                         <div class="pick-card-name" 
@@ -2603,59 +2826,94 @@ Supports:
                              onmouseleave="hideCardPreview()">
                             ${pick.cardName}
                         </div>
-                        <div class="pick-player">${pick.playerName}</div>
+                        <div class="pick-player">${pick.playerName}${tag}</div>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
         
         function updatePlayersView() {
             const container = document.getElementById('playersView');
             const currentDrafter = getCurrentDrafter();
-            
-            container.innerHTML = state.players.map((player, index) => {
-                const playerPicks = state.picks.filter(p => p.playerIndex === index);
+            const numDecks = Math.max(1, state.decksPerPlayer || 1);
+            const cardByName = name => state.cube.find(c => c.name === name);
+
+            const renderCard = (p, opts = {}) => {
+                const card = cardByName(p.cardName);
+                const colorClass = card ? getColorClass(card.colors, card.type_line) : '';
+                const hater = opts.showHater ? `<span class="exile-hater">${p.playerName}</span>` : '';
+                return `<div class="player-card"
+                    style="position: relative; padding-left: 12px; cursor: pointer;"
+                    onmouseenter="showCardPreview('${p.cardName.replace(/'/g, "\\'")}')"
+                    onmouseleave="hideCardPreview()">
+                    <div class="color-indicator ${colorClass}" style="height: 100%; width: 3px;"></div>
+                    ${p.cardName}${hater}
+                </div>`;
+            };
+
+            // Communal exile pool — open information, owned by no one
+            const hatePicks = state.picks.filter(p => p.type === 'hate');
+            let exileBlock = '';
+            if (state.hateDraftEnabled || hatePicks.length > 0) {
+                exileBlock = `
+                    <div class="player-pool exile-pool">
+                        <div class="player-pool-header">
+                            <h4>🗡️ Exile <span class="text-muted" style="font-weight:400; font-size:0.72rem;">— hate-drafted, out of the pool for everyone</span></h4>
+                            <span class="pick-count">${hatePicks.length} exiled</span>
+                        </div>
+                        <div class="player-pool-cards">
+                            ${hatePicks.length === 0
+                                ? '<p class="text-muted">Nothing exiled yet</p>'
+                                : hatePicks.map(p => renderCard(p, { showHater: true })).join('')}
+                        </div>
+                    </div>`;
+            }
+
+            const playerBlocks = state.players.map((player, index) => {
+                // Deck picks only; hate picks never belong to a player
+                const deckPicks = state.picks.filter(p => p.playerIndex === index && (p.type || 'deck') === 'deck');
                 const isCurrent = index === currentDrafter;
-                
-                // Get card data for picks
-                const pickedCards = playerPicks.map(p => 
-                    state.cube.find(c => c.name === p.cardName)
-                ).filter(Boolean);
-                
-                // Calculate stats
-                const stats = calculateDeckStats(pickedCards);
-                
+                const deckCards = deckPicks.map(p => cardByName(p.cardName)).filter(Boolean);
+                const stats = calculateDeckStats(deckCards);
+
+                let deckSection;
+                if (numDecks > 1) {
+                    deckSection = Array.from({ length: numDecks }, (_, d) => {
+                        const dpicks = deckPicks.filter(p => (p.deckIndex || 0) === d);
+                        return `
+                            <div class="deck-group">
+                                <div class="deck-group-label">Deck ${d + 1} <span class="text-muted">(${dpicks.length})</span></div>
+                                <div class="player-pool-cards">
+                                    ${dpicks.length === 0 ? '<p class="text-muted">No picks yet</p>' : dpicks.map(p => renderCard(p)).join('')}
+                                </div>
+                            </div>`;
+                    }).join('');
+                } else {
+                    deckSection = `
+                        <div class="player-pool-cards">
+                            ${deckPicks.length === 0 ? '<p class="text-muted">No picks yet</p>' : deckPicks.map(p => renderCard(p)).join('')}
+                        </div>`;
+                }
+
                 return `
                     <div class="player-pool ${isCurrent ? 'current-turn' : ''}">
                         <div class="player-pool-header">
                             <h4>${player} ${isCurrent ? '⏳' : ''}</h4>
-                            <span class="pick-count">${playerPicks.length} picks</span>
+                            <span class="pick-count">${deckPicks.length} picks</span>
                         </div>
-                        ${pickedCards.length > 0 ? `
+                        ${deckCards.length > 0 ? `
                         <div class="deck-stats">
                             <div class="color-pips">${stats.colorPips}</div>
                             <div class="mana-curve">${stats.manaCurve}</div>
                         </div>
                         ` : ''}
-                        <div class="player-pool-cards">
-                            ${playerPicks.length === 0 
-                                ? '<p class="text-muted">No picks yet</p>'
-                                : playerPicks.map(p => {
-                                    const card = state.cube.find(c => c.name === p.cardName);
-                                    const colorClass = card ? getColorClass(card.colors, card.type_line) : '';
-                                    return `<div class="player-card" 
-                                        style="position: relative; padding-left: 12px; cursor: pointer;"
-                                        onmouseenter="showCardPreview('${p.cardName.replace(/'/g, "\\'")}')"
-                                        onmouseleave="hideCardPreview()">
-                                        <div class="color-indicator ${colorClass}" style="height: 100%; width: 3px;"></div>
-                                        ${p.cardName}
-                                    </div>`;
-                                }).join('')
-                            }
-                        </div>
+                        ${deckSection}
                     </div>
                 `;
             }).join('');
+
+            container.innerHTML = exileBlock + playerBlocks;
         }
         
         function calculateDeckStats(cards) {
@@ -3001,11 +3259,14 @@ Supports:
             state.phase = 'setup';
             state.picks = [];
             state.currentPick = 0;
+            state.draftOrder = [];
             
             // Reset cube picked status
             state.cube.forEach(card => {
                 card.picked = false;
                 card.pickedBy = null;
+                card.isHate = false;
+                card.deckIndex = null;
             });
             
             saveToFirebase();
@@ -3018,17 +3279,35 @@ Supports:
             output += `# Cube: ${state.cubeName || 'Unknown'}\n`;
             output += `# Date: ${new Date().toLocaleDateString()}\n\n`;
             
+            const numDecks = Math.max(1, state.decksPerPlayer || 1);
             state.players.forEach((player, index) => {
-                const playerPicks = state.picks
-                    .filter(p => p.playerIndex === index)
-                    .map(p => p.cardName);
-                
-                output += `## ${player} (${playerPicks.length} cards)\n`;
-                playerPicks.sort().forEach(card => {
-                    output += `1 ${card}\n`;
-                });
-                output += `\n`;
+                const deckPicks = state.picks.filter(p => p.playerIndex === index && (p.type || 'deck') === 'deck');
+
+                if (numDecks > 1) {
+                    output += `## ${player}\n`;
+                    for (let d = 0; d < numDecks; d++) {
+                        const cards = deckPicks.filter(p => (p.deckIndex || 0) === d).map(p => p.cardName);
+                        output += `### Deck ${d + 1} (${cards.length} cards)\n`;
+                        cards.sort().forEach(card => { output += `1 ${card}\n`; });
+                        output += `\n`;
+                    }
+                } else {
+                    const cards = deckPicks.map(p => p.cardName);
+                    output += `## ${player} (${cards.length} cards)\n`;
+                    cards.sort().forEach(card => { output += `1 ${card}\n`; });
+                    output += `\n`;
+                }
             });
+
+            // Communal exile pool — hate-drafted, removed from the pool, owned by no one
+            const exiled = state.picks.filter(p => p.type === 'hate');
+            if (exiled.length > 0) {
+                output += `## 🗡️ Exile — Hate-Drafted (removed from the pool, owned by no one) (${exiled.length} cards)\n`;
+                exiled.slice()
+                    .sort((a, b) => a.cardName.localeCompare(b.cardName))
+                    .forEach(p => { output += `# ${p.cardName}  (hated by ${p.playerName})\n`; });
+                output += `\n`;
+            }
             
             // Create download
             const blob = new Blob([output], { type: 'text/plain' });
