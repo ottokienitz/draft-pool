@@ -1782,6 +1782,7 @@ Supports:
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     
     <script>
         // ============================================================
@@ -1865,6 +1866,14 @@ Supports:
             
             firebase.initializeApp(firebaseConfig);
             db = firebase.database();
+
+            // Anonymous sign-in so the secured rules (".read"/".write": "auth != null") allow this client.
+            // Stored as a promise that DB access waits on (see connectToRoom).
+            window.authReady = firebase.auth().signInAnonymously()
+                .catch(err => {
+                    console.error('Anonymous sign-in failed:', err);
+                    showToast('Could not sign in to Firebase. Make sure Anonymous sign-in is enabled in the Firebase console.', 'error');
+                });
             
             // Check URL for room code (skip if in sandboxed iframe)
             try {
@@ -1915,7 +1924,7 @@ Supports:
             connectToRoom(roomCode);
         }
         
-        function connectToRoom(code) {
+        async function connectToRoom(code) {
             roomCode = code;
             
             // Update URL (skip if in sandboxed iframe)
@@ -1927,6 +1936,7 @@ Supports:
                 console.log('Cannot update URL (sandboxed environment)');
             }
             
+            await window.authReady;   // wait for anonymous sign-in so secured rules permit access
             dbRef = db.ref('rotisserie/' + code);
             
             dbRef.on('value', (snapshot) => {
