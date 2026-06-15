@@ -852,6 +852,7 @@ Include both Deck and Sideboard!"></textarea>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     
     <script>
         // ============================================================
@@ -905,6 +906,13 @@ Include both Deck and Sideboard!"></textarea>
             // Initialize Firebase
             firebase.initializeApp(firebaseConfig);
             db = firebase.database();
+
+            // Anonymous sign-in so secured rules (".read"/".write": "auth != null") allow this client.
+            window.authReady = firebase.auth().signInAnonymously()
+                .catch(err => {
+                    console.error('Anonymous sign-in failed:', err);
+                    alert('Could not sign in to Firebase. Make sure Anonymous sign-in is enabled in the Firebase console.');
+                });
             
             // Check URL for room code
             const urlParams = new URLSearchParams(window.location.search);
@@ -947,7 +955,7 @@ Include both Deck and Sideboard!"></textarea>
             connectToRoom(roomCode);
         }
         
-        function connectToRoom(code) {
+        async function connectToRoom(code) {
             roomCode = code;
             localStorage.setItem('draft-room-code', code);
             
@@ -957,6 +965,7 @@ Include both Deck and Sideboard!"></textarea>
             window.history.replaceState({}, '', url);
             
             // Set up Firebase reference for this room
+            await window.authReady;   // wait for anonymous sign-in so secured rules permit access
             dbRef = db.ref('rooms/' + code);
             
             // Listen for real-time updates
