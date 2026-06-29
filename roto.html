@@ -1937,6 +1937,18 @@ Supports:
                     </div>
 
                     <div id="packSizeInfo" class="draft-size-info"></div>
+
+                    <div id="fixedPoolRow" style="margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.1);">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="fixedPoolToggle" style="width:auto;" onchange="onFixedPoolToggle()">
+                            🔁 Fixed pool — draft the cube down across multiple drafts
+                        </label>
+                        <div id="fixedPoolStatus" class="text-muted" style="font-size:0.8rem; margin-top:6px;"></div>
+                        <div id="fixedPoolActions" style="display:none; gap:8px; margin-top:8px;">
+                            <button type="button" class="secondary" onclick="resetDraftPool()" style="font-size:0.78rem; padding:5px 12px;">Reset pool to full cube</button>
+                        </div>
+                        <span class="text-muted" style="font-size:0.74rem; display:block; margin-top:6px;">When on, each finished draft removes the cards it used; the next draft draws only what's left. (Local booster &amp; Minneapolis modes.)</span>
+                    </div>
                 </div>
 
                 <button onclick="startDraft()" id="startDraftBtn" class="rotisserie-only" disabled>Start Draft</button>
@@ -3065,6 +3077,8 @@ Supports:
                     document.getElementById('startDraftBtn').disabled = false;
                     const startPackBtn = document.getElementById('startPackBtn');
                     if (startPackBtn) startPackBtn.disabled = false;
+                    draftPool = null;   // new cube → reload its own pool on next sync
+                    syncDraftPool();
                     
                     // Pre-fill the CubeCobra input if we have an ID
                     if (state.cubeId) {
@@ -4525,6 +4539,85 @@ Respond with ONLY this JSON (no markdown, no extra text):
            touches Firebase or the rotisserie state.
            ============================================================ */
         let packDraft = null;
+
+        /* ============================================================
+           FIXED DRAFT POOL — draft the cube down across multiple drafts.
+           When on, each draft draws from a persistent "remaining" pool;
+           on completion the cards it consumed are banked out, so the next
+           draft only sees what's left. Persisted per-cube in localStorage.
+           ============================================================ */
+        let fixedPoolOn = (function () { try { return localStorage.getItem('rotoFixedPoolOn') === '1'; } catch (e) { return false; } })();
+        let draftPool = null;   // { cubeName, remainingNames:[], seen:[], draftNumber, history:[] }
+
+        function poolKey() { return 'rotoDraftPool:' + (state.cubeName || 'unnamed'); }
+        function saveDraftPool() { if (!draftPool) return; try { localStorage.setItem(poolKey(), JSON.stringify(draftPool)); } catch (e) {} }
+        function remainingCards() {
+            if (!draftPool) return state.cube || [];
+            const set = new Set(draftPool.remainingNames);
+            return (state.cube || []).filter(c => set.has(c.name));
+        }
+        function draftSource() {
+            if (fixedPoolOn && draftPool && draftPool.cubeName === (state.cubeName || 'unnamed')) return remainingCards();
+            return state.cube || [];
+        }
+        function syncDraftPool() {
+            if (fixedPoolOn && state.cube && state.cube.length) {
+                const cn = state.cubeName || 'unnamed';
+                if (!draftPool || draftPool.cubeName !== cn) {
+                    try { const s = JSON.parse(localStorage.getItem(poolKey()) || 'null'); if (s && s.cubeName === cn) draftPool = s; } catch (e) {}
+                    if (!draftPool || draftPool.cubeName !== cn) {
+                        draftPool = { cubeName: cn, remainingNames: state.cube.map(c => c.name), seen: [], draftNumber: 1, history: [] };
+                        saveDraftPool();
+                    }
+                }
+            }
+            updatePoolStatus();
+        }
+        function updatePoolStatus() {
+            const el = document.getElementById('fixedPoolStatus');
+            const acts = document.getElementById('fixedPoolActions');
+            const toggle = document.getElementById('fixedPoolToggle');
+            if (toggle) toggle.checked = fixedPoolOn;
+            if (!el) return;
+            if (fixedPoolOn && draftPool && state.cube && draftPool.cubeName === (state.cubeName || 'unnamed')) {
+                el.textContent = `Draft #${draftPool.draftNumber} · ${draftPool.remainingNames.length} of ${state.cube.length} cards left in the pool`;
+                if (acts) acts.style.display = 'flex';
+            } else if (fixedPoolOn) {
+                el.textContent = 'Load a cube to start a fixed pool.';
+                if (acts) acts.style.display = 'none';
+            } else {
+                el.textContent = 'Off — every draft samples the full cube fresh.';
+                if (acts) acts.style.display = 'none';
+            }
+        }
+        function onFixedPoolToggle() {
+            fixedPoolOn = !!document.getElementById('fixedPoolToggle').checked;
+            try { localStorage.setItem('rotoFixedPoolOn', fixedPoolOn ? '1' : '0'); } catch (e) {}
+            syncDraftPool();
+        }
+        function resetDraftPool() {
+            if (!state.cube || !state.cube.length) { showToast('Load a cube first', 'error'); return; }
+            if (draftPool && draftPool.draftNumber > 1 && !confirm('Reset the pool back to the full cube and start over at Draft #1?')) return;
+            draftPool = { cubeName: state.cubeName || 'unnamed', remainingNames: state.cube.map(c => c.name), seen: [], draftNumber: 1, history: [] };
+            saveDraftPool(); updatePoolStatus();
+            showToast('Fixed pool reset to the full cube', 'success');
+        }
+        // Bank the cards a completed draft consumed, then advance the draft number.
+        function bankDraftPool(pd) {
+            if (!pd || !pd.fixedPool || pd.banked || !draftPool) return;
+            const drawn = new Set(pd.drawnNames || []);
+            draftPool.remainingNames = draftPool.remainingNames.filter(n => !drawn.has(n));
+            draftPool.seen = draftPool.seen.concat(pd.drawnNames || []);
+            draftPool.history.push({ n: draftPool.draftNumber, consumed: (pd.drawnNames || []).length, remaining: draftPool.remainingNames.length, format: pd.format || 'standard', ts: Date.now() });
+            draftPool.draftNumber++;
+            pd.banked = true;
+            saveDraftPool();
+            updatePoolStatus();
+        }
+        function startNextDraft() {
+            packDraft = null;
+            startPackDraft();   // routes by the format dropdown, drawing from the now-smaller pool
+        }
         let showElo = false;
         let mnStage = [];        // card names currently selected (staged) for the active phase
         let mnStageKey = '';     // round:phase the stage belongs to (reset when it changes)
@@ -4671,6 +4764,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             if (fmt !== 'minneapolis') { const lv = document.getElementById('packLive'); if (lv) lv.checked = false; }
             onPackLiveToggle();
             updatePackSizeInfo();
+            syncDraftPool();
         }
 
         function onPackLiveToggle() {
@@ -4775,14 +4869,18 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const seats = parseInt(document.getElementById('packSeats').value) || 8;
             const numPacks = parseInt(document.getElementById('packCount').value) || 3;
             const cardsPerPack = parseInt(document.getElementById('packSize').value) || 15;
+            if (fixedPoolOn) syncDraftPool();
+            const src = draftSource();
             const needed = seats * numPacks * cardsPerPack;
-            if (needed > state.cube.length) {
-                showToast(`Need ${needed} cards but cube has ${state.cube.length}. Lower packs / seats / size.`, 'error');
+            if (needed > src.length) {
+                showToast(fixedPoolOn
+                    ? `Need ${needed} cards but only ${src.length} left in the pool. Reset the pool or lower packs / seats / size.`
+                    : `Need ${needed} cards but cube has ${src.length}. Lower packs / seats / size.`, 'error');
                 return;
             }
 
             // Sample distinct cards, slice into packs[packIdx][seat] = [cards]
-            const pool = packShuffle(state.cube.slice()).slice(0, needed);
+            const pool = packShuffle(src.slice()).slice(0, needed);
             const packs = [];
             let idx = 0;
             for (let p = 0; p < numPacks; p++) {
@@ -4810,6 +4908,9 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 history: [],
                 done: false
             };
+            packDraft.format = 'standard';
+            packDraft.fixedPool = fixedPoolOn && !!draftPool;
+            packDraft.drawnNames = pool.map(c => c.name);
 
             sideboardNames = new Set();
             document.getElementById('draftSetup').style.display = 'none';
@@ -5064,16 +5165,22 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
         function renderPackComplete() {
             const pd = packDraft;
+            bankDraftPool(pd);
             document.getElementById('mnConfirmBar').style.display = 'none';
             document.getElementById('packTitle').textContent = 'Draft complete! 🎉';
-            document.getElementById('packMeta').innerHTML = `<span>You drafted ${pd.pool.length} cards across ${pd.numPacks} packs.</span>`;
+            const remainTxt = (pd.fixedPool && draftPool) ? ` · ${draftPool.remainingNames.length} cards left in the pool` : '';
+            document.getElementById('packMeta').innerHTML = `<span>You drafted ${pd.pool.length} cards across ${pd.numPacks} packs.${remainTxt}</span>`;
             document.getElementById('packExportBtn').style.display = 'inline-block';
             document.getElementById('boosterGrid').classList.remove('single-row');
+            const nextBtn = (pd.fixedPool && draftPool)
+                ? `<button onclick="startNextDraft()">➡️ Start Draft #${draftPool.draftNumber} — ${draftPool.remainingNames.length} cards left</button>`
+                : `<button class="secondary" onclick="exitPackDraft()">Draft Again</button>`;
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🎉 That's a wrap</h2>
-                <div class="pc-sub">Your full pool is on the right. Export it as a deck list or run it back.</div>
+                <div class="pc-sub">Your full pool is on the right. Export it as a deck list${pd.fixedPool ? ', or run the remaining pool back' : ' or run it back'}.</div>
                 <button onclick="exportPackPool()">📥 Export Pool</button>
-                <button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Draft Again</button>
+                ${nextBtn}
+                ${(pd.fixedPool && draftPool) ? '<button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Back to Setup</button>' : ''}
             </div>`;
             renderPoolPanel(pd.pool);
             if (pd.format === 'minneapolis') {
@@ -5158,11 +5265,15 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const picks = [1, 2, 2];
             const burns = [0, 0, 2];
             const needed = numPacks * 2 * packSize;
-            if (needed > state.cube.length) {
-                showToast(`Need ${needed} cards but cube has ${state.cube.length}. Lower the pack count.`, 'error');
+            if (fixedPoolOn) syncDraftPool();
+            const src = draftSource();
+            if (needed > src.length) {
+                showToast(fixedPoolOn
+                    ? `Need ${needed} cards but only ${src.length} left in the pool. Reset the pool or lower the pack count.`
+                    : `Need ${needed} cards but cube has ${src.length}. Lower the pack count.`, 'error');
                 return;
             }
-            const pool = packShuffle(state.cube.slice()).slice(0, needed);
+            const pool = packShuffle(src.slice()).slice(0, needed);
             const rounds = [];
             let idx = 0;
             for (let r = 0; r < numPacks; r++) {
@@ -5189,6 +5300,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 burned: [],
                 done: false
             };
+            packDraft.fixedPool = fixedPoolOn && !!draftPool;
+            packDraft.drawnNames = pool.map(c => c.name);
             mnStage = []; mnStageKey = ''; sideboardNames = new Set();
             document.getElementById('draftSetup').style.display = 'none';
             document.getElementById('draftBoard').classList.remove('active');
@@ -5331,6 +5444,27 @@ Respond with ONLY this JSON (no markdown, no extra text):
         let liveSeat = null;
         let liveCardMap = {};
         let lastLivePickable = false;
+        let liveHostBusy = false;
+
+        // All card names that appeared in a draft's packs (= the cards that draft consumed).
+        function collectPackNames(packs) {
+            const names = [];
+            Object.values(packs || {}).forEach(round => {
+                ['0', '1'].forEach(k => (round[k] || []).forEach(n => names.push(n)));
+            });
+            return names;
+        }
+        // Fixed-pool info for the current live room (driven by the host, read by both players).
+        function livePoolInfo() {
+            const meta = (liveState && liveState.meta) || {};
+            const lp = liveState && liveState.pool;
+            const on = !!meta.fixedPool;
+            return {
+                on,
+                draftNumber: meta.draftNumber || (lp && lp.draftNumber) || 1,
+                remaining: (on && lp && Array.isArray(lp.remainingNames)) ? lp.remainingNames.length : null
+            };
+        }
         const myClientId = (() => {
             try {
                 let id = localStorage.getItem('rotoClientId');
@@ -5373,6 +5507,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             claimLiveSeat(() => {
                 liveRef.on('value', snap => {
                     liveState = snap.val() || {};
+                    liveHostBusy = false;
                     buildLiveCardMap();
                     renderLiveDraft();
                     renderLiveChat();
@@ -5404,12 +5539,42 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function hostStartLive() {
             if (liveSeat !== 0) { showToast('Only Player 1 (host) can start.', 'error'); return; }
             if (!(state.cube && state.cube.length)) { showToast('Load a cube first', 'error'); return; }
+            if (liveHostBusy) return;
             const numPacks = parseInt(document.getElementById('packCount').value) || 10;
             const packSize = 7;
             const needed = numPacks * 2 * packSize;
-            if (needed > state.cube.length) { showToast(`Need ${needed} cards but cube has ${state.cube.length}. Lower the pack count.`, 'error'); return; }
+            const cubeName = state.cubeName || '';
 
-            const pool = packShuffle(state.cube.slice()).slice(0, needed);
+            // Pick the source cards. With a fixed pool, draw from what's left and bank the
+            // previous draft's cards out first (so Draft #2 only sees what Draft #1 didn't use).
+            let lp = null, sourceCards;
+            if (fixedPoolOn) {
+                const byName = new Map((state.cube || []).map(c => [c.name, c]));
+                lp = (liveState && liveState.pool) ? liveState.pool : null;
+                if (!lp || lp.cubeName !== cubeName) {
+                    lp = { cubeName, remainingNames: state.cube.map(c => c.name), seen: [], draftNumber: 1, lastBankedTs: null };
+                } else if (liveState && liveState.meta && liveState.meta.started && liveState.packs && lp.lastBankedTs !== liveState.meta.ts) {
+                    const consumed = collectPackNames(liveState.packs);
+                    const set = new Set(consumed);
+                    lp.remainingNames = lp.remainingNames.filter(n => !set.has(n));
+                    lp.seen = (lp.seen || []).concat(consumed);
+                    lp.draftNumber = (lp.draftNumber || 1) + 1;
+                    lp.lastBankedTs = liveState.meta.ts;
+                }
+                sourceCards = lp.remainingNames.map(n => byName.get(n)).filter(Boolean);
+            } else {
+                sourceCards = state.cube.slice();
+            }
+
+            if (needed > sourceCards.length) {
+                showToast(fixedPoolOn
+                    ? `Need ${needed} cards but only ${sourceCards.length} left in the pool. Lower the pack count or reset the pool back in setup.`
+                    : `Need ${needed} cards but cube has ${sourceCards.length}. Lower the pack count.`, 'error');
+                return;
+            }
+
+            liveHostBusy = true;
+            const pool = packShuffle(sourceCards.slice()).slice(0, needed);
             const packs = {};
             const cardList = [];
             const seen = new Set();
@@ -5429,12 +5594,16 @@ Respond with ONLY this JSON (no markdown, no extra text):
                     });
                 });
             }
+            const ts = Date.now();
             const meta = {
                 format: 'minneapolis', numPacks, packSize, picks: [1, 2, 2], burns: [0, 0, 2],
-                privatePhases: [0], cubeName: state.cubeName || '', started: true, ts: Date.now()
+                privatePhases: [0], cubeName, started: true, ts,
+                fixedPool: !!fixedPoolOn, draftNumber: fixedPoolOn ? lp.draftNumber : 1
             };
-            liveRef.update({ packs, cards: cardList, meta });
-            showToast('Live draft started!', 'success');
+            const update = { packs, cards: cardList, meta, picks: null };   // picks:null resets the log for the new draft
+            if (fixedPoolOn) update.pool = lp;
+            liveRef.update(update);
+            showToast(fixedPoolOn ? `Draft #${lp.draftNumber} started!` : 'Live draft started!', 'success');
         }
 
         // ---- Replay the log into a view both clients compute identically ----
@@ -5536,7 +5705,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const owe = v.sched[v.phase] - v.made(v.round, v.phase, liveSeat);
             const oppOwe = v.sched[v.phase] - v.made(v.round, v.phase, 1 - liveSeat);
 
-            document.getElementById('packTitle').textContent = `Minneapolis (Live) — Pack ${v.round + 1} of ${v.nRounds}`;
+            document.getElementById('packTitle').textContent = `Minneapolis (Live) — ${livePoolInfo().on ? 'Draft #' + livePoolInfo().draftNumber + ' · ' : ''}Pack ${v.round + 1} of ${v.nRounds}`;
             const heldLabel = own ? '🔓 Your pack' : "🔁 Opponent's pack";
             const faceTag = (liveState.meta.privatePhases || [0]).includes(v.phase) ? '🂠 face-down' : '👁 face-up';
             let status;
@@ -5607,7 +5776,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             if (isHost) {
                 if (!haveCube) actions = `<div class="pc-sub">Load a cube back in setup to host this draft.</div>`;
                 else if (!bothHere) actions = `<div class="pc-sub">Waiting for your friend to join room <strong>${roomCode}</strong>…</div>`;
-                else actions = `<button onclick="hostStartLive()">Start the draft</button>`;
+                else actions = `<button onclick="hostStartLive()">Start the draft</button>` + (fixedPoolOn ? `<div class="pc-sub" style="margin-top:8px;">🔁 Fixed pool on — after each draft you can run the remaining cards back for another round.</div>` : '');
             } else if (liveSeat === 1) {
                 actions = `<div class="pc-sub">Waiting for ${escapeHtml(p0)} to start the draft…</div>`;
             } else {
@@ -5634,10 +5803,28 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('packMeta').innerHTML = `<span>All face-down picks are now revealed.</span>`;
             document.getElementById('packExportBtn').style.display = 'inline-block';
             document.getElementById('boosterGrid').classList.remove('single-row');
+
+            const info = livePoolInfo();
+            let nextHtml = '';
+            if (info.on) {
+                const consumed = collectPackNames(liveState.packs).length;
+                const willRemain = Math.max(0, (info.remaining || 0) - consumed);
+                const nextNum = (info.draftNumber || 1) + 1;
+                const needed = ((liveState.meta && liveState.meta.numPacks) || 10) * 14;
+                if (liveSeat === 0) {
+                    nextHtml = willRemain >= needed
+                        ? `<button onclick="hostStartLive()">➡️ Start Draft #${nextNum} — ${willRemain} cards left</button>`
+                        : `<div class="pc-sub">🔁 Only ${willRemain} cards left — lower the pack count back in setup to run another draft.</div>`;
+                } else {
+                    nextHtml = `<div class="pc-sub">🔁 ${willRemain} cards left in the pool. Waiting for the host to start Draft #${nextNum}…</div>`;
+                }
+            }
+
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🎉 Draft complete</h2>
-                <div class="pc-sub">Add basics and build your 40. Both pools are revealed in the panel.</div>
+                <div class="pc-sub">Add basics and build your 40. Both pools are revealed in the panel.${info.on ? ' Play it out, then run the remaining pool back.' : ''}</div>
                 <button onclick="exportPackPool()">📥 Export My Pool</button>
+                ${nextHtml}
                 <button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Leave</button>
             </div>`;
             renderLivePools(v);
