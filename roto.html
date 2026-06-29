@@ -1544,6 +1544,8 @@
             padding: 18px;
             margin-bottom: 22px;
         }
+        .booster-grid.single-row { display: flex; flex-wrap: nowrap; gap: 10px; justify-content: flex-start; }
+        .booster-grid.single-row .booster-card { flex: 1 1 0; min-width: 0; max-width: 180px; }
         .booster-card {
             position: relative;
             border-radius: 9px;
@@ -1686,6 +1688,14 @@
             font-size: 0.72rem; color: #8ad8d0; text-transform: uppercase; letter-spacing: 0.5px;
             border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 4px; margin-bottom: 6px;
         }
+        .chip-move {
+            margin-left: auto; cursor: pointer; color: #778; padding: 0 6px;
+            border-radius: 4px; font-size: 0.95rem; line-height: 1; flex-shrink: 0;
+        }
+        .chip-move:hover { background: rgba(255,255,255,0.16); color: #fff; }
+        .sideboard-area { margin-top: 16px; border-top: 1px dashed rgba(255,255,255,0.18); padding-top: 14px; }
+        .sideboard-head { font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; }
+        .sideboard-body .pool-columns { opacity: 0.85; }
     </style>
 </head>
 <body>
@@ -2021,18 +2031,20 @@ Supports:
                 <div class="pool-dock">
                     <div class="pool-panel">
                         <div class="pool-dock-head">
-                            <h3>Your Pool (<span id="poolCount">0</span>)</h3>
+                            <h3>Deck (<span id="poolCount">0</span>)</h3>
                             <select class="pool-sort" id="poolSort" onchange="onPoolSortChange()">
                                 <option value="cmc" selected>Sort: Mana Value</option>
                                 <option value="color">Sort: Color</option>
                                 <option value="type">Sort: Type</option>
-                                <option value="elo">Sort: Power (ELO)</option>
-                                <option value="name">Sort: Name</option>
                             </select>
                         </div>
                         <div class="pool-curve" id="poolCurve"></div>
                         <div class="pool-mini" id="poolMini">
                             <p class="text-muted">No picks yet</p>
+                        </div>
+                        <div class="sideboard-area" id="sideboardArea" style="display:none;">
+                            <div class="sideboard-head">Sideboard (<span id="sbCount">0</span>) <span class="text-muted" style="font-weight:400;">— cut cards you won't play</span></div>
+                            <div class="sideboard-body" id="sideboardBody"></div>
                         </div>
                     </div>
                 </div>
@@ -4442,7 +4454,9 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function renderMnPickGrid(held, picksNeeded, burnCount) {
             const full = (mnStage.length >= picksNeeded);
             const stagedSet = new Set(mnStage);
-            document.getElementById('boosterGrid').innerHTML = held.map(card => {
+            const grid = document.getElementById('boosterGrid');
+            grid.classList.add('single-row');   // ≤7 cards — keep it one compact row
+            grid.innerHTML = held.map(card => {
                 const safe = card.name.replace(/'/g, "\\'");
                 const img = card.image_normal || card.image_small || '';
                 const elo = (showElo && card.elo != null) ? `<div class="bc-elo">${Math.round(card.elo)}</div>` : '';
@@ -4687,6 +4701,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 done: false
             };
 
+            sideboardNames = new Set();
             document.getElementById('draftSetup').style.display = 'none';
             document.getElementById('draftBoard').classList.remove('active');
             document.getElementById('packBoard').classList.add('active');
@@ -4765,8 +4780,9 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 `<span>${remaining} card${remaining === 1 ? '' : 's'} in this pack</span>` +
                 `<span>You've drafted ${pd.pool.length}</span>`;
 
-            document.getElementById('boosterGrid').innerHTML =
-                pd.boosters[pd.humanSeat].map(card => boosterCardHTML(card, 'packPick')).join('');
+            const _pg = document.getElementById('boosterGrid');
+            _pg.classList.remove('single-row');
+            _pg.innerHTML = pd.boosters[pd.humanSeat].map(card => boosterCardHTML(card, 'packPick')).join('');
             document.getElementById('mnConfirmBar').style.display = 'none';
 
             renderPackPool();
@@ -4775,15 +4791,26 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
         function renderPackPool() { renderPoolPanel(packDraft.pool); }
 
-        // A single card "chip" used in pool / pile lists.
-        function poolChipHTML(c) {
+        let sideboardNames = new Set();
+
+        // A single card "chip". `action` ('demote' | 'promote') adds a move button.
+        function poolChipHTML(c, action) {
             const safe = c.name.replace(/'/g, "\\'");
             const eloTag = (showElo && c.elo != null) ? ` <span style="color:#f0ad4e; font-size:0.72rem;">${Math.round(c.elo)}</span>` : '';
+            let btn = '';
+            if (action === 'demote') btn = `<span class="chip-move" title="Move to sideboard" onclick="togglePoolCardSideboard('${safe}')">⤓</span>`;
+            else if (action === 'promote') btn = `<span class="chip-move" title="Move to deck" onclick="togglePoolCardSideboard('${safe}')">⤒</span>`;
             return `<div class="pm-row"><div class="color-indicator ${getColorClass(c.colors, c.type_line)}"></div>
-                <span class="pm-name" onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">${c.name}${eloTag}</span></div>`;
+                <span class="pm-name" onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">${c.name}${eloTag}</span>${btn}</div>`;
         }
 
-        // Group a set of cards into curve sections (by mana value), lands last.
+        function togglePoolCardSideboard(name) {
+            if (sideboardNames.has(name)) sideboardNames.delete(name);
+            else sideboardNames.add(name);
+            renderPoolPanel(lastPoolCards);
+        }
+
+        // Group a set of cards into curve sections (by mana value), lands last. (Used for opponent / burned piles.)
         function curveGroupsHTML(cards) {
             if (!cards.length) return '<p class="text-muted">No picks yet</p>';
             const isLand = c => (c.type_line || '').toLowerCase().includes('land');
@@ -4796,10 +4823,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
             let html = '';
             for (let mv = 0; mv <= 7; mv++) {
                 if (!byMv[mv] || !byMv[mv].length) continue;
-                html += `<div class="curve-group"><div class="cg-head">${mv}${mv >= 7 ? '+' : ''} MV · ${byMv[mv].length}</div>${sortChips(byMv[mv]).map(poolChipHTML).join('')}</div>`;
+                html += `<div class="curve-group"><div class="cg-head">${mv}${mv >= 7 ? '+' : ''} MV · ${byMv[mv].length}</div>${sortChips(byMv[mv]).map(c => poolChipHTML(c)).join('')}</div>`;
             }
             if (lands.length) {
-                html += `<div class="curve-group"><div class="cg-head">Lands · ${lands.length}</div>${sortChips(lands).map(poolChipHTML).join('')}</div>`;
+                html += `<div class="curve-group"><div class="cg-head">Lands · ${lands.length}</div>${sortChips(lands).map(c => poolChipHTML(c)).join('')}</div>`;
             }
             return html;
         }
@@ -4808,11 +4835,14 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
         function renderPoolPanel(cards) {
             lastPoolCards = cards;
-            document.getElementById('poolCount').textContent = cards.length;
+            const deck = cards.filter(c => !sideboardNames.has(c.name));
+            const sb = cards.filter(c => sideboardNames.has(c.name));
 
-            // Mana curve bar chart (non-lands), buckets 0..6 (6 = 6+) — pixel heights so it scales live
+            document.getElementById('poolCount').textContent = deck.length;
+
+            // Mana curve from the *maindeck* (so demoting a card drops it from the curve)
             const counts = [0, 0, 0, 0, 0, 0, 0];
-            cards.forEach(c => {
+            deck.forEach(c => {
                 if ((c.type_line || '').toLowerCase().includes('land')) return;
                 const cmc = Math.min(Math.round(c.cmc || 0), 6);
                 counts[cmc]++;
@@ -4825,7 +4855,20 @@ Respond with ONLY this JSON (no markdown, no extra text):
             }).join('');
 
             const mode = document.getElementById('poolSort')?.value || 'cmc';
-            document.getElementById('poolMini').innerHTML = poolBodyHTML(cards, mode);
+            document.getElementById('poolMini').innerHTML = poolBodyHTML(deck, mode, 'demote');
+
+            // Sideboard
+            const sbArea = document.getElementById('sideboardArea');
+            const sbCount = document.getElementById('sbCount');
+            if (sbArea) {
+                if (sb.length) {
+                    sbArea.style.display = 'block';
+                    if (sbCount) sbCount.textContent = sb.length;
+                    document.getElementById('sideboardBody').innerHTML = poolBodyHTML(sb, mode, 'promote');
+                } else {
+                    sbArea.style.display = 'none';
+                }
+            }
         }
         function onPoolSortChange() { renderPoolPanel(lastPoolCards); }
 
@@ -4850,32 +4893,30 @@ Respond with ONLY this JSON (no markdown, no extra text):
             for (let i = 0; i < order.length; i++) if (t.includes(order[i])) return { key: order[i], label: order[i] + 's', order: i };
             return { key: 'Other', label: 'Other', order: 99 };
         }
-        function poolColumnsHTML(cards, catFn) {
+        function poolColumnsHTML(cards, catFn, action) {
             const groups = {};
             cards.forEach(c => { const cat = catFn(c); (groups[cat.key] = groups[cat.key] || { cat, cards: [] }).cards.push(c); });
             const cols = Object.values(groups).sort((a, b) => a.cat.order - b.cat.order);
             return `<div class="pool-columns">` + cols.map(g => {
                 const sorted = g.cards.slice().sort((a, b) => (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name));
-                return `<div class="pool-col"><div class="pcg-head">${g.cat.label} · ${g.cards.length}</div>${sorted.map(poolChipHTML).join('')}</div>`;
+                return `<div class="pool-col"><div class="pcg-head">${g.cat.label} · ${g.cards.length}</div>${sorted.map(c => poolChipHTML(c, action)).join('')}</div>`;
             }).join('') + `</div>`;
         }
         // Draftmancer-style fixed columns 0..7 (always shown) so the deck visibly unfolds.
-        function poolCmcColumnsHTML(cards) {
+        function poolCmcColumnsHTML(cards, action) {
             const cols = [[], [], [], [], [], [], [], []];
             cards.forEach(c => { const mv = Math.min(Math.round(c.cmc || 0), 7); cols[mv].push(c); });
             return `<div class="pool-columns">` + cols.map((arr, mv) => {
                 const sorted = arr.slice().sort((a, b) =>
                     getColorSortOrder(a.colors, a.type_line) - getColorSortOrder(b.colors, b.type_line) || a.name.localeCompare(b.name));
-                return `<div class="pool-col"><div class="pcg-head">${mv}${mv >= 7 ? '+' : ''}${arr.length ? ` · ${arr.length}` : ''}</div>${sorted.map(poolChipHTML).join('')}</div>`;
+                return `<div class="pool-col"><div class="pcg-head">${mv}${mv >= 7 ? '+' : ''}${arr.length ? ` · ${arr.length}` : ''}</div>${sorted.map(c => poolChipHTML(c, action)).join('')}</div>`;
             }).join('') + `</div>`;
         }
-        function poolBodyHTML(cards, mode) {
-            if (!cards.length) return '<p class="text-muted">No picks yet</p>';
-            if (mode === 'name') return cards.slice().sort((a, b) => a.name.localeCompare(b.name)).map(poolChipHTML).join('');
-            if (mode === 'elo') return cards.slice().sort((a, b) => (b.elo ?? -9999) - (a.elo ?? -9999) || a.name.localeCompare(b.name)).map(poolChipHTML).join('');
-            if (mode === 'color') return poolColumnsHTML(cards, colorCategory);
-            if (mode === 'type') return poolColumnsHTML(cards, typeCategory);
-            return poolCmcColumnsHTML(cards);
+        function poolBodyHTML(cards, mode, action) {
+            if (!cards.length) return '<p class="text-muted">No cards</p>';
+            if (mode === 'color') return poolColumnsHTML(cards, colorCategory, action);
+            if (mode === 'type') return poolColumnsHTML(cards, typeCategory, action);
+            return poolCmcColumnsHTML(cards, action);
         }
 
         function renderBotStatus() {
@@ -4897,6 +4938,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('packTitle').textContent = 'Draft complete! 🎉';
             document.getElementById('packMeta').innerHTML = `<span>You drafted ${pd.pool.length} cards across ${pd.numPacks} packs.</span>`;
             document.getElementById('packExportBtn').style.display = 'inline-block';
+            document.getElementById('boosterGrid').classList.remove('single-row');
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🎉 That's a wrap</h2>
                 <div class="pc-sub">Your full pool is on the right. Export it as a deck list or run it back.</div>
@@ -4918,29 +4960,34 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function exportPackPool() {
+            const writeLists = (cards) => {
+                const deck = cards.filter(c => !sideboardNames.has(c.name)).sort((a, b) => a.name.localeCompare(b.name));
+                const sb = cards.filter(c => sideboardNames.has(c.name)).sort((a, b) => a.name.localeCompare(b.name));
+                let s = deck.map(c => `1 ${c.name}`).join('\n') + '\n';
+                if (sb.length) s += '\nSideboard\n' + sb.map(c => `1 ${c.name}`).join('\n') + '\n';
+                return s;
+            };
+            const download = (out, fname) => {
+                const blob = new Blob([out], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = fname;
+                a.click(); URL.revokeObjectURL(url);
+                showToast('Pool exported!', 'success');
+            };
             if (liveActive) {
                 const v = deriveLive(liveState);
                 const mine = (v.poolBySeat[liveSeat] || []).map(pk => liveCard(pk.card)).filter(Boolean);
                 let out = `# Minneapolis Live Draft Pool\n# Room: ${roomCode}\n# Cube: ${(liveState.meta && liveState.meta.cubeName) || 'Unknown'}\n# Date: ${new Date().toLocaleString()}\n\n`;
-                mine.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(c => { out += `1 ${c.name}\n`; });
-                const blob = new Blob([out], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = `minneapolis-${roomCode}.txt`;
-                a.click(); URL.revokeObjectURL(url);
-                showToast('Pool exported!', 'success');
+                out += writeLists(mine);
+                download(out, `minneapolis-${roomCode}.txt`);
                 return;
             }
             if (!packDraft) return;
             let out = `# Booster Draft Pool\n# Cube: ${state.cubeName || 'Unknown'}\n# Date: ${new Date().toLocaleString()}\n`;
             out += `# ${packDraft.numPacks} packs × ${packDraft.cardsPerPack} cards, ${packDraft.seats} seats\n\n`;
-            packDraft.pool.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(c => { out += `1 ${c.name}\n`; });
-            const blob = new Blob([out], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = `booster-draft-${Date.now()}.txt`;
-            a.click(); URL.revokeObjectURL(url);
-            showToast('Pool exported!', 'success');
+            out += writeLists(packDraft.pool);
+            download(out, `booster-draft-${Date.now()}.txt`);
         }
 
         function exitPackDraft() {
@@ -5012,7 +5059,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 burned: [],
                 done: false
             };
-            mnStage = []; mnStageKey = '';
+            mnStage = []; mnStageKey = ''; sideboardNames = new Set();
             document.getElementById('draftSetup').style.display = 'none';
             document.getElementById('draftBoard').classList.remove('active');
             document.getElementById('packBoard').classList.add('active');
@@ -5183,7 +5230,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function goLiveMinneapolis() {
             if (!roomCode) { showToast('Create or join a room first', 'error'); return; }
             liveActive = true;
-            mnStage = []; mnStageKey = '';
+            mnStage = []; mnStageKey = ''; sideboardNames = new Set();
             packDraft = { active: true, format: 'minneapolis-live' };  // makes the rotisserie updateUI() bow out
             liveRef = db.ref('live/' + roomCode);
 
@@ -5379,6 +5426,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 renderMnPickGrid(myHeld, v.sched[v.phase], (liveState.meta.burns || [0, 0, 0])[v.phase]);
             } else {
                 document.getElementById('mnConfirmBar').style.display = 'none';
+                grid.classList.remove('single-row');
                 grid.innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                     <h2>⏳ Waiting for ${escapeHtml(oppName())}</h2>
                     <div class="pc-sub">They're still picking this round. Hang tight — or say hi in the chat.</div></div>`;
@@ -5436,6 +5484,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 actions = `<div class="pc-sub">This room's live draft already has two players.</div>`;
             }
 
+            document.getElementById('boosterGrid').classList.remove('single-row');
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🌐 Live Minneapolis</h2>
                 <div class="pc-sub">Player 1: <strong>${escapeHtml(p0)}</strong> &nbsp;·&nbsp; Player 2: <strong>${escapeHtml(p1)}</strong></div>
@@ -5454,6 +5503,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('packTitle').textContent = 'Live draft complete! 🎉';
             document.getElementById('packMeta').innerHTML = `<span>All face-down picks are now revealed.</span>`;
             document.getElementById('packExportBtn').style.display = 'inline-block';
+            document.getElementById('boosterGrid').classList.remove('single-row');
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🎉 Draft complete</h2>
                 <div class="pc-sub">Add basics and build your 40. Both pools are revealed in the panel.</div>
