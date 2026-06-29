@@ -3575,6 +3575,7 @@ Supports:
 
             let sx, sy, ol, ot, dragging = false;
             header.addEventListener('pointerdown', e => {
+                if (e.target.closest('.cr-close')) return;   // let the close button fire its click
                 dragging = true;
                 const r = p.getBoundingClientRect();
                 ol = r.left; ot = r.top; sx = e.clientX; sy = e.clientY;
