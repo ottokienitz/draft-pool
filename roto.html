@@ -1680,8 +1680,8 @@
             margin-left: auto; padding: 6px 10px; background: rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.8rem; cursor: pointer;
         }
-        .pool-columns { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 6px; }
-        .pool-col { flex: 1 1 0; min-width: 130px; }
+        .pool-columns { display: flex; gap: 10px; align-items: flex-start; overflow-x: auto; padding-bottom: 6px; }
+        .pool-col { flex: 1 1 0; min-width: 132px; background: rgba(255,255,255,0.025); border-radius: 8px; padding: 8px 8px 10px; min-height: 64px; }
         .pool-col .pcg-head {
             font-size: 0.72rem; color: #8ad8d0; text-transform: uppercase; letter-spacing: 0.5px;
             border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 4px; margin-bottom: 6px;
@@ -3406,6 +3406,9 @@ Supports:
         // Card Preview
         async function showCardPreview(cardName) {
             updateCardReader(cardName);
+            // When the docked right-column reader is on screen (pack / live draft),
+            // don't also pop the floating tooltip — avoids the double card reader.
+            const useDock = document.getElementById('packBoard')?.classList.contains('active');
             const preview = document.getElementById('cardPreview');
             const img = document.getElementById('previewImage');
             const cardType = document.getElementById('cardType');
@@ -3436,7 +3439,7 @@ Supports:
                     detailsDiv.style.display = 'none';
                 }
                 
-                preview.classList.add('active');
+                preview.classList.toggle('active', !useDock);
                 return;
             }
             
@@ -3467,7 +3470,7 @@ Supports:
                         flavorText.textContent = data.flavor_text || data.card_faces?.[0]?.flavor_text || '';
                         detailsDiv.style.display = (oracleText.textContent || flavorText.textContent) ? 'block' : 'none';
                         
-                        preview.classList.add('active');
+                        if (!useDock) preview.classList.add('active');
                     }
                 }
             } catch (e) {
@@ -4856,13 +4859,23 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 return `<div class="pool-col"><div class="pcg-head">${g.cat.label} · ${g.cards.length}</div>${sorted.map(poolChipHTML).join('')}</div>`;
             }).join('') + `</div>`;
         }
+        // Draftmancer-style fixed columns 0..7 (always shown) so the deck visibly unfolds.
+        function poolCmcColumnsHTML(cards) {
+            const cols = [[], [], [], [], [], [], [], []];
+            cards.forEach(c => { const mv = Math.min(Math.round(c.cmc || 0), 7); cols[mv].push(c); });
+            return `<div class="pool-columns">` + cols.map((arr, mv) => {
+                const sorted = arr.slice().sort((a, b) =>
+                    getColorSortOrder(a.colors, a.type_line) - getColorSortOrder(b.colors, b.type_line) || a.name.localeCompare(b.name));
+                return `<div class="pool-col"><div class="pcg-head">${mv}${mv >= 7 ? '+' : ''}${arr.length ? ` · ${arr.length}` : ''}</div>${sorted.map(poolChipHTML).join('')}</div>`;
+            }).join('') + `</div>`;
+        }
         function poolBodyHTML(cards, mode) {
             if (!cards.length) return '<p class="text-muted">No picks yet</p>';
             if (mode === 'name') return cards.slice().sort((a, b) => a.name.localeCompare(b.name)).map(poolChipHTML).join('');
             if (mode === 'elo') return cards.slice().sort((a, b) => (b.elo ?? -9999) - (a.elo ?? -9999) || a.name.localeCompare(b.name)).map(poolChipHTML).join('');
             if (mode === 'color') return poolColumnsHTML(cards, colorCategory);
             if (mode === 'type') return poolColumnsHTML(cards, typeCategory);
-            return poolColumnsHTML(cards, cmcCategory);
+            return poolCmcColumnsHTML(cards);
         }
 
         function renderBotStatus() {
