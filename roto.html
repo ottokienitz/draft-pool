@@ -211,9 +211,9 @@
         /* Enhanced Card Tooltip */
         .card-tooltip {
             position: fixed;
-            right: 20px;
-            top: 100px;
-            width: 280px;
+            right: 16px;
+            top: 80px;
+            width: 230px;
             z-index: 50;
             pointer-events: none;
             opacity: 0;
@@ -1576,7 +1576,7 @@
         .booster-card.no-img { display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; }
         .booster-card.no-img .bc-fallback { font-size: 0.8rem; color: #ccd; }
 
-        .pack-cols { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: stretch; }
+        .pack-cols { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 18px; align-items: stretch; }
         .pack-left { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
         @media (max-width: 900px) { .pack-cols { grid-template-columns: 1fr; } }
 
@@ -1708,7 +1708,7 @@
             border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.8rem; cursor: pointer;
         }
         .pool-columns { display: flex; gap: 10px; align-items: flex-start; overflow-x: auto; padding-bottom: 6px; }
-        .pool-col { flex: 1 1 0; min-width: 132px; background: rgba(255,255,255,0.025); border-radius: 8px; padding: 8px 8px 10px; min-height: 64px; }
+        .pool-col { flex: 1 1 0; min-width: 108px; background: rgba(255,255,255,0.025); border-radius: 8px; padding: 8px 8px 10px; min-height: 64px; }
         .pool-col .pcg-head {
             font-size: 0.72rem; color: #8ad8d0; text-transform: uppercase; letter-spacing: 0.5px;
             border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 4px; margin-bottom: 6px;
@@ -2062,10 +2062,6 @@ Supports:
                         </div>
                     </div>
                     <div class="pack-side">
-                        <div class="pool-panel">
-                            <h3>🔍 Card Reader</h3>
-                            <div id="cardReader" class="card-reader-empty">Hover a card to read it here</div>
-                        </div>
                         <div class="pool-panel">
                             <h3>Table</h3>
                             <div class="bot-status" id="botStatus"></div>
@@ -3441,72 +3437,41 @@ Supports:
         
         // Card Preview
         async function showCardPreview(cardName) {
-            updateCardReader(cardName);
-            // When the docked right-column reader is on screen (pack / live draft),
-            // don't also pop the floating tooltip — avoids the double card reader.
-            const useDock = document.getElementById('packBoard')?.classList.contains('active');
             const preview = document.getElementById('cardPreview');
             const img = document.getElementById('previewImage');
-            const cardType = document.getElementById('cardType');
-            const oracleText = document.getElementById('oracleText');
-            const flavorText = document.getElementById('flavorText');
             const detailsDiv = document.getElementById('cardDetails');
-            
-            // First check if we have it in cube data
-            const cubeCard = state.cube.find(c => c.name === cardName);
-            
-            // Check cache
-            if (cardDataCache[cardName]) {
-                const cached = cardDataCache[cardName];
-                img.src = cached.image;
-                
-                // Show details if available
-                if (cached.type_line || cached.oracle_text || cached.flavor_text) {
-                    cardType.textContent = cached.type_line || '';
-                    oracleText.textContent = cached.oracle_text || '';
-                    flavorText.textContent = cached.flavor_text || '';
-                    detailsDiv.style.display = (cached.oracle_text || cached.flavor_text) ? 'block' : 'none';
-                } else if (cubeCard) {
-                    cardType.textContent = cubeCard.type_line || '';
-                    oracleText.textContent = cubeCard.oracle_text || '';
-                    flavorText.textContent = cubeCard.flavor_text || '';
-                    detailsDiv.style.display = (cubeCard.oracle_text || cubeCard.flavor_text) ? 'block' : 'none';
-                } else {
-                    detailsDiv.style.display = 'none';
-                }
-                
-                preview.classList.toggle('active', !useDock);
+            if (detailsDiv) detailsDiv.style.display = 'none';   // image-only keeps it small & jump-free
+
+            // Use an image we already have (cube / live room / cache) for an instant, flicker-free show
+            const cube = (state.cube || []).find(c => c.name === cardName);
+            const lc = (typeof liveCardMap !== 'undefined' && liveCardMap[cardName]) ? liveCardMap[cardName] : null;
+            let url = (cardDataCache[cardName] && cardDataCache[cardName].image)
+                || (cube && (cube.image_normal || cube.image_small))
+                || (lc && (lc.image_normal || lc.image_small)) || '';
+
+            if (url) {
+                if (img.getAttribute('src') !== url) img.src = url;   // avoid reloading the same image
+                preview.classList.add('active');
                 return;
             }
-            
-            // Fetch from Scryfall
+
+            // Otherwise fetch the image once from Scryfall and cache it
             try {
                 const response = await fetch(
                     `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`,
                     { headers: { 'Accept': 'application/json' } }
                 );
-                
                 if (response.ok) {
                     const data = await response.json();
                     const imageUrl = data.image_uris?.normal || data.card_faces?.[0]?.image_uris?.normal;
-                    
                     if (imageUrl) {
-                        cardDataCache[cardName] = { 
-                            image: imageUrl, 
-                            type_line: data.type_line,
+                        cardDataCache[cardName] = {
+                            image: imageUrl, type_line: data.type_line,
                             oracle_text: data.oracle_text || data.card_faces?.[0]?.oracle_text || '',
-                            flavor_text: data.flavor_text || data.card_faces?.[0]?.flavor_text || '',
-                            rarity: data.rarity
+                            flavor_text: data.flavor_text || '', rarity: data.rarity
                         };
                         img.src = imageUrl;
-                        updateCardReader(cardName);
-                        
-                        cardType.textContent = data.type_line || '';
-                        oracleText.textContent = data.oracle_text || data.card_faces?.[0]?.oracle_text || '';
-                        flavorText.textContent = data.flavor_text || data.card_faces?.[0]?.flavor_text || '';
-                        detailsDiv.style.display = (oracleText.textContent || flavorText.textContent) ? 'block' : 'none';
-                        
-                        if (!useDock) preview.classList.add('active');
+                        preview.classList.add('active');
                     }
                 }
             } catch (e) {
@@ -3518,26 +3483,6 @@ Supports:
             document.getElementById('cardPreview').classList.remove('active');
         }
 
-        // Docked card reader in the pack/live board's right column.
-        function updateCardReader(cardName) {
-            const reader = document.getElementById('cardReader');
-            if (!reader) return;
-            const cached = cardDataCache[cardName] || {};
-            const cube = (state.cube || []).find(x => x.name === cardName);
-            const lc = (typeof liveCardMap !== 'undefined' && liveCardMap[cardName]) ? liveCardMap[cardName] : null;
-            const img = cached.image || (cube && (cube.image_normal || cube.image_small)) || (lc && (lc.image_normal || lc.image_small)) || '';
-            const type = cached.type_line || (cube && cube.type_line) || (lc && lc.type_line) || '';
-            const oracle = cached.oracle_text || (cube && cube.oracle_text) || '';
-            if (!img && !type && !oracle) return;
-            reader.classList.remove('card-reader-empty');
-            const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
-            reader.innerHTML =
-                (img ? `<img src="${img}" alt="${esc(cardName)}" class="reader-img">` : '') +
-                `<div class="reader-name">${esc(cardName)}</div>` +
-                (type ? `<div class="reader-type">${esc(type)}</div>` : '') +
-                (oracle ? `<div class="reader-oracle">${esc(oracle)}</div>` : '');
-        }
-        
         // Turn Notifications
         async function requestNotificationPermission() {
             if ('Notification' in window && Notification.permission === 'default') {
