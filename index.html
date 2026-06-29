@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rotisserie Draft</title>
+    <title>Cube Draft</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono&display=swap');
         
@@ -1769,8 +1769,8 @@
         <!-- Room Setup Screen -->
         <div class="room-setup" id="roomSetup">
             <div class="room-setup-card">
-                <h2>🎴 Rotisserie Draft</h2>
-                <p>Create or join a draft room to start picking cards!</p>
+                <h2>🎴 Cube Draft</h2>
+                <p>Rotisserie, booster pod, or Minneapolis — create or join a room to draft.</p>
                 <div class="room-actions">
                     <div class="room-action-group">
                         <button onclick="createRoom()">Create New Draft</button>
@@ -1789,7 +1789,7 @@
         <div class="main-content" id="mainContent">
             <header>
                 <div class="logo">
-                    <h1>🎴 Rotisserie Draft</h1>
+                    <h1>🎴 Cube Draft</h1>
                     <span id="cubeNameHeader" style="color: #888; font-size: 0.9rem; margin-left: 10px;"></span>
                 </div>
                 <div class="room-info">
@@ -4646,19 +4646,23 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const i = mnStage.indexOf(name);
             if (i >= 0) mnStage.splice(i, 1);
             else {
-                if (mnStage.length >= need) { showToast(`Pick exactly ${need} here — deselect one first`, 'info'); return; }
-                mnStage.push(name);
+                if (mnStage.length >= need) {
+                    if (need === 1) { mnStage = [name]; }   // single pick: clicking another swaps the selection
+                    else { showToast(`Pick exactly ${need} here — deselect one first`, 'info'); return; }
+                } else {
+                    mnStage.push(name);
+                }
             }
             rerenderPackView();
         }
         function mnClearStage() { mnStage = []; rerenderPackView(); }
 
         // Renders the held pack as a selectable grid + a confirm bar.
-        function renderMnPickGrid(held, picksNeeded, burnCount) {
+        function renderMnPickGrid(held, picksNeeded, burnCount, singleRow = true) {
             const full = (mnStage.length >= picksNeeded);
             const stagedSet = new Set(mnStage);
             const grid = document.getElementById('boosterGrid');
-            grid.classList.add('single-row');   // ≤7 cards — keep it one compact row
+            if (singleRow) grid.classList.add('single-row'); else grid.classList.remove('single-row');
             grid.innerHTML = held.map(card => {
                 const safe = card.name.replace(/'/g, "\\'");
                 const img = card.image_normal || card.image_small || '';
@@ -4689,7 +4693,17 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 `</span>`;
         }
 
-        function mnConfirm() { return liveActive ? mnConfirmLive() : mnConfirmSolo(); }
+        function mnConfirm() {
+            if (liveActive) return mnConfirmLive();
+            if (packDraft && packDraft.format === 'minneapolis') return mnConfirmSolo();
+            return packConfirm();   // standard booster: single staged pick
+        }
+        function packConfirm() {
+            if (mnStage.length !== 1) { showToast('Select a card first', 'info'); return; }
+            const name = mnStage[0];
+            mnStage = [];
+            packPick(name);
+        }
 
         function mnConfirmLive() {
             const v = deriveLive(liveState);
@@ -4991,10 +5005,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 `<span>${remaining} card${remaining === 1 ? '' : 's'} in this pack</span>` +
                 `<span>You've drafted ${pd.pool.length}</span>`;
 
-            const _pg = document.getElementById('boosterGrid');
-            _pg.classList.remove('single-row');
-            _pg.innerHTML = pd.boosters[pd.humanSeat].map(card => boosterCardHTML(card, 'packPick')).join('');
-            document.getElementById('mnConfirmBar').style.display = 'none';
+            mnSyncStageKey('pack:' + pd.packIdx + ':' + pd.pickNum);
+            renderMnPickGrid(pd.boosters[pd.humanSeat], 1, 0, false);   // select 1 → Lock in pick; multi-row pack
 
             renderPackPool();
             renderBotStatus();
@@ -5152,15 +5164,12 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
         function renderBotStatus() {
             const pd = packDraft;
-            const sym = { W: '⚪', U: '🔵', B: '⚫', R: '🔴', G: '🟢' };
-            const rows = [`<div class="bs-row"><span><strong>You</strong></span><span>${pd.pool.length} cards</span></div>`];
-            for (let s = 0; s < pd.seats; s++) {
-                if (s === pd.humanSeat) continue;
-                const b = pd.bots[s];
-                const cols = b.topColors().map(c => sym[c] || '').join('');
-                rows.push(`<div class="bs-row"><span>${b.name}</span><span class="bs-colors">${cols || '—'} · ${b.pool.length}</span></div>`);
-            }
-            document.getElementById('botStatus').innerHTML = rows.join('');
+            // Standard booster is a hidden-information draft: you do NOT see what your
+            // neighbors are taking. Only your own progress is shown here.
+            const others = pd.seats - 1;
+            document.getElementById('botStatus').innerHTML =
+                `<div class="bs-row"><span><strong>You</strong></span><span>${pd.pool.length} cards</span></div>` +
+                `<div class="bs-row" style="color:#889; font-size:0.8rem;"><span>${others} other drafter${others === 1 ? '' : 's'}</span><span>picks hidden 🂠</span></div>`;
         }
 
         function renderPackComplete() {
