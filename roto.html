@@ -1480,6 +1480,126 @@
             border-color: rgba(239, 68, 68, 0.5);
             color: #fecaca;
         }
+        /* ===== Mode toggle + Booster (pack) draft ===== */
+        .mode-toggle {
+            display: flex;
+            gap: 8px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            padding: 6px;
+            margin-bottom: 22px;
+        }
+        .mode-toggle button {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #9aa;
+            padding: 12px 14px;
+            border-radius: 7px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s;
+        }
+        .mode-toggle button .mt-sub {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 400;
+            color: #778;
+            margin-top: 2px;
+        }
+        .mode-toggle button.active {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            color: #07201d;
+        }
+        .mode-toggle button.active .mt-sub { color: rgba(7,32,29,0.75); }
+
+        .pack-board { display: none; }
+        .pack-board.active { display: block; }
+
+        .pack-banner {
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 16px 22px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .pack-banner h2 { font-size: 1.3rem; margin: 0; }
+        .pack-banner .pb-meta { color: #9aa; font-size: 0.9rem; display: flex; gap: 18px; flex-wrap: wrap; }
+        .pack-banner .pb-dir { color: #4ecdc4; font-weight: 600; }
+        .pack-banner .pb-spacer { margin-left: auto; display: flex; gap: 8px; }
+
+        .booster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 22px;
+        }
+        .booster-card {
+            position: relative;
+            border-radius: 9px;
+            overflow: hidden;
+            cursor: pointer;
+            aspect-ratio: 488 / 680;
+            background: #0d0d18;
+            border: 2px solid transparent;
+            transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+        }
+        .booster-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .booster-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            border-color: #4ecdc4;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.6);
+            z-index: 2;
+        }
+        .booster-card .bc-name {
+            position: absolute; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.92));
+            color: #fff; font-size: 0.72rem; padding: 16px 6px 5px; line-height: 1.15;
+        }
+        .booster-card .bc-elo {
+            position: absolute; top: 5px; right: 5px;
+            background: rgba(0,0,0,0.75); color: #f0ad4e;
+            font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 5px;
+        }
+        .booster-card.no-img { display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; }
+        .booster-card.no-img .bc-fallback { font-size: 0.8rem; color: #ccd; }
+
+        .pack-cols { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
+        @media (max-width: 900px) { .pack-cols { grid-template-columns: 1fr; } }
+
+        .pool-panel {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .pool-panel h3 { margin-bottom: 12px; font-size: 1rem; }
+        .pool-curve { display: flex; gap: 4px; align-items: flex-end; height: 70px; margin-bottom: 14px; }
+        .pool-curve .pc-bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .pool-curve .pc-fill { width: 100%; background: linear-gradient(180deg, #4ecdc4, #44a08d); border-radius: 3px 3px 0 0; min-height: 2px; }
+        .pool-curve .pc-label { font-size: 0.65rem; color: #889; }
+        .pool-mini { font-size: 0.8rem; }
+        .pool-mini .pm-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; }
+        .pool-mini .pm-row .color-indicator { position: static; }
+        .pool-mini .pm-name:hover { color: #4ecdc4; cursor: pointer; }
+
+        .bot-status { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+        .bot-status .bs-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #9aa; padding: 2px 0; }
+        .bot-status .bs-row .bs-colors { letter-spacing: 1px; }
+
+        .pack-complete { text-align: center; padding: 30px 20px; }
+        .pack-complete h2 { margin-bottom: 8px; }
+        .pack-complete .pc-sub { color: #9aa; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -1531,25 +1651,44 @@
             <!-- Draft Setup Phase -->
             <div class="draft-setup" id="draftSetup">
                 <h2>📋 Draft Setup</h2>
-                
+
+                <div class="mode-toggle" id="modeToggle">
+                    <button id="modeRotoBtn" class="active" onclick="setDraftMode('rotisserie')">
+                        🍢 Rotisserie
+                        <span class="mt-sub">Shared pool, multiplayer, one card at a time</span>
+                    </button>
+                    <button id="modePackBtn" onclick="setDraftMode('pack')">
+                        📦 Booster Draft
+                        <span class="mt-sub">Open a pack, pick, pass — solo vs bots</span>
+                    </button>
+                </div>
+
                 <div class="setup-section">
                     <h3>👥 Players</h3>
                     <label>Your Name</label>
                     <input type="text" id="playerName" placeholder="Enter your name" onchange="savePlayerName()">
-                    
-                    <label>Number of Players</label>
-                    <select id="playerCount" onchange="handlePlayerCountChange()">
-                        <option value="2">2 Players</option>
-                        <option value="3">3 Players</option>
-                        <option value="4">4 Players</option>
-                        <option value="5">5 Players</option>
-                        <option value="6">6 Players</option>
-                        <option value="7">7 Players</option>
-                        <option value="8" selected>8 Players</option>
-                    </select>
-                    
-                    <label>Player Names (in draft order) <button class="small secondary" onclick="randomizePlayerOrder()" style="margin-left: 10px;">🎲 Randomize Order</button></label>
-                    <div class="player-inputs" id="playerInputs"></div>
+
+                    <div class="rotisserie-only">
+                        <label>Number of Players</label>
+                        <select id="playerCount" onchange="handlePlayerCountChange()">
+                            <option value="2">2 Players</option>
+                            <option value="3">3 Players</option>
+                            <option value="4">4 Players</option>
+                            <option value="5">5 Players</option>
+                            <option value="6">6 Players</option>
+                            <option value="7">7 Players</option>
+                            <option value="8" selected>8 Players</option>
+                        </select>
+
+                        <label>Player Names (in draft order) <button class="small secondary" onclick="randomizePlayerOrder()" style="margin-left: 10px;">🎲 Randomize Order</button></label>
+                        <div class="player-inputs" id="playerInputs"></div>
+                    </div>
+
+                    <div class="packdraft-only" style="display:none;">
+                        <span class="text-muted" style="font-size:0.85rem; display:block; margin-top:6px;">
+                            You'll draft against AI bots that learn their colors as they go. Just set the table below.
+                        </span>
+                    </div>
                 </div>
                 
                 <div class="setup-section">
@@ -1574,7 +1713,7 @@ Supports:
                     <span id="cubeStatus" class="text-muted" style="margin-left: 15px;"></span>
                 </div>
                 
-                <div class="setup-section">
+                <div class="setup-section rotisserie-only">
                     <h3>⚙️ Draft Settings</h3>
                     <label>Picks per Deck</label>
                     <input type="number" id="picksPerPlayer" value="45" min="1" max="100" oninput="updateDraftSizeInfo()">
@@ -1605,7 +1744,46 @@ Supports:
                     <div id="draftSizeInfo" class="draft-size-info"></div>
                 </div>
                 
-                <button onclick="startDraft()" id="startDraftBtn" disabled>Start Draft</button>
+                <div class="setup-section packdraft-only" style="display:none;">
+                    <h3>⚙️ Booster Draft Settings</h3>
+
+                    <label>Format</label>
+                    <select id="packFormat" onchange="onPackFormatChange()">
+                        <option value="standard" selected>Standard — open a pack, pick one, pass</option>
+                        <option value="minneapolis">Minneapolis — 2-player trade &amp; burn</option>
+                    </select>
+                    <span class="text-muted" id="packFormatNote" style="font-size:0.78rem; display:block; margin-top:4px;"></span>
+
+                    <div id="packLiveRow" style="display:none; margin-top:12px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="packLive" style="width:auto;" onchange="onPackLiveToggle()">
+                            🌐 Play live online with a friend (2-player room)
+                        </label>
+                        <span class="text-muted" id="packLiveNote" style="font-size:0.78rem; display:block; margin-top:4px;"></span>
+                    </div>
+
+                    <div id="packSeatsRow">
+                        <label>Seats at the table (you + bots)</label>
+                        <select id="packSeats" oninput="updatePackSizeInfo()" onchange="updatePackSizeInfo()">
+                            <option value="4">4 (you + 3 bots)</option>
+                            <option value="6">6 (you + 5 bots)</option>
+                            <option value="8" selected>8 (you + 7 bots)</option>
+                        </select>
+                    </div>
+
+                    <label>Number of packs<span id="packCountSuffix"></span></label>
+                    <input type="number" id="packCount" value="3" min="1" max="12" oninput="updatePackSizeInfo()">
+
+                    <div id="packSizeRow">
+                        <label>Cards per pack</label>
+                        <input type="number" id="packSize" value="15" min="3" max="25" oninput="updatePackSizeInfo()">
+                    </div>
+
+                    <div id="packSizeInfo" class="draft-size-info"></div>
+                </div>
+
+                <button onclick="startDraft()" id="startDraftBtn" class="rotisserie-only" disabled>Start Draft</button>
+                <button onclick="startPackDraft()" id="startPackBtn" class="packdraft-only" style="display:none;" disabled>Start Booster Draft</button>
             </div>
             
             <!-- Draft Board -->
@@ -1722,9 +1900,40 @@ Supports:
                     </div>
                 </div>
             </div>
+
+            <!-- Booster (Pack) Draft Board -->
+            <div class="pack-board" id="packBoard">
+                <div class="pack-banner" id="packBanner">
+                    <div>
+                        <h2 id="packTitle">Pack 1, Pick 1</h2>
+                        <div class="pb-meta" id="packMeta"></div>
+                    </div>
+                    <div class="pb-spacer">
+                        <button class="small secondary" onclick="exportPackPool()" id="packExportBtn">📥 Export Pool</button>
+                        <button class="small secondary" onclick="exitPackDraft()">Back to Setup</button>
+                    </div>
+                </div>
+
+                <div class="pack-cols">
+                    <div>
+                        <div class="booster-grid" id="boosterGrid"></div>
+                    </div>
+                    <div>
+                        <div class="pool-panel">
+                            <h3>Your Pool (<span id="poolCount">0</span>)</h3>
+                            <div class="pool-curve" id="poolCurve"></div>
+                            <div class="pool-mini" id="poolMini">
+                                <p class="text-muted">No picks yet</p>
+                            </div>
+                        </div>
+                        <div class="pool-panel" style="margin-top:16px;">
+                            <h3>Table</h3>
+                            <div class="bot-status" id="botStatus"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <!-- Card Tooltip with Oracle Text -->
         <div class="card-tooltip" id="cardPreview">
             <img src="" alt="Card Preview" id="previewImage">
             <div class="card-details" id="cardDetails">
@@ -2637,6 +2846,9 @@ Supports:
         
         // UI Updates
         function updateUI() {
+            // If a local booster draft is in progress, don't let Firebase snapshots
+            // flip us back to the rotisserie setup/board views.
+            if (packDraft && packDraft.active) return;
             // Update header with cube name
             const cubeNameHeader = document.getElementById('cubeNameHeader');
             if (cubeNameHeader && state.cubeName) {
@@ -2672,6 +2884,8 @@ Supports:
                     const sourceInfo = state.cubeSource === 'cubecobra' ? ` from CubeCobra` : '';
                     document.getElementById('cubeStatus').textContent = `✓ ${state.cube.length} cards loaded${sourceInfo}`;
                     document.getElementById('startDraftBtn').disabled = false;
+                    const startPackBtn = document.getElementById('startPackBtn');
+                    if (startPackBtn) startPackBtn.disabled = false;
                     
                     // Pre-fill the CubeCobra input if we have an ID
                     if (state.cubeId) {
@@ -3385,7 +3599,13 @@ Supports:
             const message = input.value.trim();
             
             if (!message || isSpectator) return;
-            
+
+            if (liveActive && liveRef) {
+                liveRef.child('chat').push({ playerName: playerName || 'Anonymous', message, timestamp: Date.now() });
+                input.value = '';
+                return;
+            }
+
             const chatMessage = {
                 playerName: playerName || 'Anonymous',
                 message: message,
@@ -3398,18 +3618,22 @@ Supports:
         }
         
         function updateChatMessages() {
+            renderChatMessagesInto(state.chat || []);
+        }
+
+        function renderChatMessagesInto(messages) {
             const container = document.getElementById('chatMessages');
             const unreadBadge = document.getElementById('chatUnread');
-            
-            if (!state.chat || state.chat.length === 0) return;
-            
-            container.innerHTML = state.chat.map(msg => {
+
+            if (!messages || messages.length === 0) return;
+
+            container.innerHTML = messages.map(msg => {
                 const time = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                 const isSystem = msg.playerName === 'System';
                 
                 return `
                     <div class="chat-message ${isSystem ? 'system' : ''}">
-                        ${!isSystem ? `<div class="sender">${msg.playerName}</div>` : ''}
+                        ${!isSystem ? `<div class="sender">${escapeHtml(msg.playerName)}</div>` : ''}
                         <div class="text">${escapeHtml(msg.message)}</div>
                         <div class="time">${time}</div>
                     </div>
@@ -3417,8 +3641,8 @@ Supports:
             }).join('');
             
             // Show unread badge if chat is collapsed
-            if (!chatExpanded && state.chat.length > lastSeenChatCount) {
-                const unread = state.chat.length - lastSeenChatCount;
+            if (!chatExpanded && messages.length > lastSeenChatCount) {
+                const unread = messages.length - lastSeenChatCount;
                 unreadBadge.textContent = unread;
                 unreadBadge.style.display = 'inline';
             }
@@ -3953,6 +4177,855 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 timestamp: Date.now()
             }];
         };
+
+        /* ============================================================
+           BOOSTER (PACK) DRAFT — solo vs bots, fully client-side.
+           Bot heuristic ported from Draftmancer's SimpleBot:
+             score = rating + 0.35 * (cards already picked in that color)
+           Lives entirely in the local `packDraft` object so it never
+           touches Firebase or the rotisserie state.
+           ============================================================ */
+        let packDraft = null;
+        let currentDraftMode = 'rotisserie';
+
+        function setDraftMode(mode) {
+            currentDraftMode = mode;
+            document.getElementById('modeRotoBtn').classList.toggle('active', mode === 'rotisserie');
+            document.getElementById('modePackBtn').classList.toggle('active', mode === 'pack');
+            document.querySelectorAll('.rotisserie-only').forEach(el => el.style.display = (mode === 'rotisserie') ? '' : 'none');
+            document.querySelectorAll('.packdraft-only').forEach(el => el.style.display = (mode === 'pack') ? '' : 'none');
+            const haveCube = !!(state.cube && state.cube.length > 0);
+            const sdb = document.getElementById('startDraftBtn');
+            const spb = document.getElementById('startPackBtn');
+            if (sdb) sdb.disabled = !haveCube;
+            if (spb) spb.disabled = !haveCube;
+            if (mode === 'pack') { if (typeof onPackFormatChange === 'function') onPackFormatChange(); else updatePackSizeInfo(); }
+        }
+
+        function onPackFormatChange() {
+            const fmt = document.getElementById('packFormat').value;
+            const seatsRow = document.getElementById('packSeatsRow');
+            const sizeRow = document.getElementById('packSizeRow');
+            const note = document.getElementById('packFormatNote');
+            const startBtn = document.getElementById('startPackBtn');
+            const packCount = document.getElementById('packCount');
+            if (fmt === 'minneapolis') {
+                seatsRow.style.display = 'none';   // always 2 players
+                sizeRow.style.display = 'none';    // locked to 7-card packs
+                document.getElementById('packSize').value = 7;
+                if (parseInt(packCount.value) < 4) packCount.value = 8;  // canonical is 8
+                document.getElementById('packCountSuffix').textContent = ' (each player opens this many)';
+                note.innerHTML = '2-player only. Each round you both open a 7-card pack: pick 1 face-down, trade and take 2 from your opponent\u2019s pack, then take 2 from your own \u2014 the last 2 are burned. 5 cards drafted per pack.';
+                if (startBtn) startBtn.textContent = 'Start Minneapolis Draft';
+            } else {
+                seatsRow.style.display = '';
+                sizeRow.style.display = '';
+                if (document.getElementById('packSize').value === '7' && parseInt(packCount.value) >= 4) {
+                    // leaving Minneapolis defaults — restore standard defaults
+                    document.getElementById('packSize').value = 15;
+                    packCount.value = 3;
+                }
+                document.getElementById('packCountSuffix').textContent = '';
+                note.textContent = '';
+                if (startBtn) startBtn.textContent = 'Start Booster Draft';
+            }
+            const liveRow = document.getElementById('packLiveRow');
+            if (liveRow) liveRow.style.display = (fmt === 'minneapolis') ? 'block' : 'none';
+            if (fmt !== 'minneapolis') { const lv = document.getElementById('packLive'); if (lv) lv.checked = false; }
+            onPackLiveToggle();
+            updatePackSizeInfo();
+        }
+
+        function onPackLiveToggle() {
+            const fmt = document.getElementById('packFormat')?.value || 'standard';
+            const live = !!document.getElementById('packLive')?.checked && fmt === 'minneapolis';
+            const note = document.getElementById('packLiveNote');
+            const startBtn = document.getElementById('startPackBtn');
+            if (live) {
+                if (note) note.innerHTML = `You're in room <strong>${roomCode || '—'}</strong>. Share that code with your friend — they join the same room, pick Minneapolis → Play live, and you draft together in real time. First pick is face-down (private); the wheel and last two picks are face-up.`;
+                if (startBtn) startBtn.textContent = 'Go Live (host the draft)';
+            } else if (note) {
+                note.textContent = '';
+                if (startBtn && fmt === 'minneapolis') startBtn.textContent = 'Start Minneapolis Draft';
+            }
+        }
+
+        function updatePackSizeInfo() {
+            const el = document.getElementById('packSizeInfo');
+            if (!el) return;
+            const fmt = document.getElementById('packFormat')?.value || 'standard';
+            const cubeSize = (state.cube && state.cube.length) || 0;
+            let needed, summary;
+            if (fmt === 'minneapolis') {
+                const packs = parseInt(document.getElementById('packCount')?.value) || 8;
+                const size = 7;
+                needed = packs * 2 * size;            // both players open a pack each round
+                const picksForYou = packs * 5;        // 1 + 2 + 2 per pack
+                summary = `<strong>${needed}</strong> distinct cards needed (${packs} packs × 2 players × ${size}) — you'll draft <strong>${picksForYou}</strong> cards`;
+            } else {
+                const seats = parseInt(document.getElementById('packSeats')?.value) || 8;
+                const packs = parseInt(document.getElementById('packCount')?.value) || 3;
+                const size = parseInt(document.getElementById('packSize')?.value) || 15;
+                needed = seats * packs * size;
+                const picksForYou = packs * size;
+                summary = `<strong>${needed}</strong> distinct cards needed (${seats} seats × ${packs} packs × ${size}) — you'll make <strong>${picksForYou}</strong> picks`;
+            }
+            if (!cubeSize) {
+                el.className = 'draft-size-info';
+                el.innerHTML = `📊 ${summary}. Load a cube to check against its size.`;
+            } else if (needed > cubeSize) {
+                el.className = 'draft-size-info over';
+                el.innerHTML = `⚠️ ${summary}, but your cube has only <strong>${cubeSize}</strong> — short by <strong>${needed - cubeSize}</strong>. Lower the pack count.`;
+            } else {
+                el.className = 'draft-size-info ok';
+                el.innerHTML = `✓ ${summary}. Cube has ${cubeSize} (${cubeSize - needed} to spare).`;
+            }
+        }
+
+        // Map ELO to a Draftmancer-style rating (~0–7). Cards lacking ELO get a neutral default.
+        function packCardRating(card) {
+            if (card && card.elo != null && !isNaN(card.elo)) {
+                return Math.max(0, (card.elo - 1100) / 100);
+            }
+            return 2.5;
+        }
+
+        function makeBot(name) {
+            return {
+                name,
+                pickedColors: { W: 0, U: 0, B: 0, R: 0, G: 0 },
+                pool: [],
+                pick(booster) {
+                    const scores = booster.map(c => {
+                        let s = packCardRating(c);
+                        (c.colors || []).forEach(col => { s += 0.35 * (this.pickedColors[col] || 0); });
+                        return s;
+                    });
+                    const max = Math.max(...scores);
+                    const cands = scores.map((s, i) => ({ s, i })).filter(e => e.s === max);
+                    const chosen = cands[Math.floor(Math.random() * cands.length)].i;
+                    const card = booster[chosen];
+                    (card.colors || []).forEach(col => { this.pickedColors[col] = (this.pickedColors[col] || 0) + 1; });
+                    this.pool.push(card);
+                    booster.splice(chosen, 1);
+                    return card;
+                },
+                topColors() {
+                    return Object.entries(this.pickedColors)
+                        .filter(([, n]) => n > 0)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 2)
+                        .map(([c]) => c);
+                }
+            };
+        }
+
+        function packShuffle(a) {
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function startPackDraft() {
+            if (!state.cube || state.cube.length === 0) { showToast('Load a cube first', 'error'); return; }
+            const fmt = document.getElementById('packFormat')?.value || 'standard';
+            if (fmt === 'minneapolis') {
+                const live = !!document.getElementById('packLive')?.checked;
+                return live ? goLiveMinneapolis() : startMinneapolisDraft();
+            }
+            const seats = parseInt(document.getElementById('packSeats').value) || 8;
+            const numPacks = parseInt(document.getElementById('packCount').value) || 3;
+            const cardsPerPack = parseInt(document.getElementById('packSize').value) || 15;
+            const needed = seats * numPacks * cardsPerPack;
+            if (needed > state.cube.length) {
+                showToast(`Need ${needed} cards but cube has ${state.cube.length}. Lower packs / seats / size.`, 'error');
+                return;
+            }
+
+            // Sample distinct cards, slice into packs[packIdx][seat] = [cards]
+            const pool = packShuffle(state.cube.slice()).slice(0, needed);
+            const packs = [];
+            let idx = 0;
+            for (let p = 0; p < numPacks; p++) {
+                const round = [];
+                for (let s = 0; s < seats; s++) {
+                    round.push(pool.slice(idx, idx + cardsPerPack));
+                    idx += cardsPerPack;
+                }
+                packs.push(round);
+            }
+
+            const humanSeat = 0;
+            const bots = [];
+            for (let s = 0; s < seats; s++) bots.push(s === humanSeat ? null : makeBot(`Bot ${s}`));
+
+            packDraft = {
+                active: true,
+                seats, numPacks, cardsPerPack, humanSeat,
+                packs, bots,
+                packIdx: 0,
+                pickNum: 1,
+                direction: 1,                       // +1 pass left, alternates each pack
+                boosters: packs[0].map(b => b.slice()),
+                pool: [],
+                history: [],
+                done: false
+            };
+
+            document.getElementById('draftSetup').style.display = 'none';
+            document.getElementById('draftBoard').classList.remove('active');
+            document.getElementById('packBoard').classList.add('active');
+            document.getElementById('packExportBtn').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            renderPackDraft();
+            showToast('Booster draft started — pick a card!', 'success');
+        }
+
+        function packPick(cardName) {
+            if (!packDraft || packDraft.done) return;
+            const pd = packDraft;
+            const hb = pd.boosters[pd.humanSeat];
+            const hi = hb.findIndex(c => c.name === cardName);
+            if (hi === -1) return;
+
+            const humanCard = hb.splice(hi, 1)[0];
+            pd.pool.push(humanCard);
+            pd.history.push({ pack: pd.packIdx + 1, pick: pd.pickNum, card: humanCard.name });
+
+            // Every bot picks from its own booster at the same time
+            for (let s = 0; s < pd.seats; s++) {
+                if (s === pd.humanSeat) continue;
+                if (pd.boosters[s].length > 0) pd.bots[s].pick(pd.boosters[s]);
+            }
+
+            // Pass: seat i now holds the booster that came from seat (i - direction)
+            const rotated = new Array(pd.seats);
+            for (let i = 0; i < pd.seats; i++) {
+                rotated[i] = pd.boosters[(i - pd.direction + pd.seats) % pd.seats];
+            }
+            pd.boosters = rotated;
+            pd.pickNum++;
+
+            // Pack exhausted? advance or finish
+            if (pd.boosters[pd.humanSeat].length === 0) {
+                pd.packIdx++;
+                if (pd.packIdx >= pd.numPacks) {
+                    pd.done = true;
+                    renderPackComplete();
+                    return;
+                }
+                pd.boosters = pd.packs[pd.packIdx].map(b => b.slice());
+                pd.direction *= -1;
+                pd.pickNum = 1;
+            }
+            renderPackDraft();
+        }
+
+        // Shared booster-card markup. `handler` is the click function name.
+        function boosterCardHTML(card, handler) {
+            const safe = card.name.replace(/'/g, "\\'");
+            const img = card.image_normal || card.image_small || '';
+            const elo = (card.elo != null) ? `<div class="bc-elo">${Math.round(card.elo)}</div>` : '';
+            if (img) {
+                return `<div class="booster-card" onclick="${handler}('${safe}')"
+                     onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
+                     <img src="${img}" alt="${card.name}" loading="lazy">${elo}
+                     <div class="bc-name">${card.name}</div></div>`;
+            }
+            return `<div class="booster-card no-img" onclick="${handler}('${safe}')"
+                 onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
+                 ${elo}<div class="bc-fallback">${card.name}</div></div>`;
+        }
+
+        function renderPackDraft() {
+            const pd = packDraft;
+            if (pd.format === 'minneapolis') return renderMinneapolisBoard();
+
+            document.getElementById('packTitle').textContent = `Pack ${pd.packIdx + 1}, Pick ${pd.pickNum}`;
+            const dir = pd.direction === 1 ? '← passing left' : 'passing right →';
+            const remaining = pd.boosters[pd.humanSeat].length;
+            document.getElementById('packMeta').innerHTML =
+                `<span>${pd.seats} seats</span>` +
+                `<span class="pb-dir">${dir}</span>` +
+                `<span>${remaining} card${remaining === 1 ? '' : 's'} in this pack</span>` +
+                `<span>You've drafted ${pd.pool.length}</span>`;
+
+            document.getElementById('boosterGrid').innerHTML =
+                pd.boosters[pd.humanSeat].map(card => boosterCardHTML(card, 'packPick')).join('');
+
+            renderPackPool();
+            renderBotStatus();
+        }
+
+        function renderPackPool() { renderPoolPanel(packDraft.pool); }
+
+        function renderPoolPanel(cards) {
+            document.getElementById('poolCount').textContent = cards.length;
+
+            // Mana curve (non-lands), buckets 0..6 (6 = 6+)
+            const counts = [0, 0, 0, 0, 0, 0, 0];
+            cards.forEach(c => {
+                if ((c.type_line || '').toLowerCase().includes('land')) return;
+                const cmc = Math.min(Math.round(c.cmc || 0), 6);
+                counts[cmc]++;
+            });
+            const maxC = Math.max(1, ...counts);
+            document.getElementById('poolCurve').innerHTML = counts.map((n, cmc) => {
+                const h = Math.round((n / maxC) * 100);
+                return `<div class="pc-bar"><div class="pc-fill" style="height:${h}%" title="${cmc}${cmc >= 6 ? '+' : ''} MV: ${n}"></div><div class="pc-label">${cmc}${cmc >= 6 ? '+' : ''}</div></div>`;
+            }).join('');
+
+            const sorted = cards.slice().sort((a, b) =>
+                getColorSortOrder(a.colors, a.type_line) - getColorSortOrder(b.colors, b.type_line) ||
+                (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name));
+            const mini = document.getElementById('poolMini');
+            if (sorted.length === 0) { mini.innerHTML = '<p class="text-muted">No picks yet</p>'; return; }
+            mini.innerHTML = sorted.map(c => {
+                const safe = c.name.replace(/'/g, "\\'");
+                return `<div class="pm-row"><div class="color-indicator ${getColorClass(c.colors, c.type_line)}"></div>
+                    <span class="pm-name" onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">${c.name}</span></div>`;
+            }).join('');
+        }
+
+        function renderBotStatus() {
+            const pd = packDraft;
+            const sym = { W: '⚪', U: '🔵', B: '⚫', R: '🔴', G: '🟢' };
+            const rows = [`<div class="bs-row"><span><strong>You</strong></span><span>${pd.pool.length} cards</span></div>`];
+            for (let s = 0; s < pd.seats; s++) {
+                if (s === pd.humanSeat) continue;
+                const b = pd.bots[s];
+                const cols = b.topColors().map(c => sym[c] || '').join('');
+                rows.push(`<div class="bs-row"><span>${b.name}</span><span class="bs-colors">${cols || '—'} · ${b.pool.length}</span></div>`);
+            }
+            document.getElementById('botStatus').innerHTML = rows.join('');
+        }
+
+        function renderPackComplete() {
+            document.getElementById('packTitle').textContent = 'Draft complete! 🎉';
+            document.getElementById('packMeta').innerHTML = `<span>You drafted ${packDraft.pool.length} cards across ${packDraft.numPacks} packs.</span>`;
+            document.getElementById('packExportBtn').style.display = 'inline-block';
+            document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
+                <h2>🎉 That's a wrap</h2>
+                <div class="pc-sub">Your full pool is on the right. Export it as a deck list or run it back.</div>
+                <button onclick="exportPackPool()">📥 Export Pool</button>
+                <button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Draft Again</button>
+            </div>`;
+            renderPackPool();
+            renderBotStatus();
+        }
+
+        function exportPackPool() {
+            if (liveActive) {
+                const v = deriveLive(liveState);
+                const mine = (v.poolBySeat[liveSeat] || []).map(pk => liveCard(pk.card)).filter(Boolean);
+                let out = `# Minneapolis Live Draft Pool\n# Room: ${roomCode}\n# Cube: ${(liveState.meta && liveState.meta.cubeName) || 'Unknown'}\n# Date: ${new Date().toLocaleString()}\n\n`;
+                mine.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(c => { out += `1 ${c.name}\n`; });
+                const blob = new Blob([out], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `minneapolis-${roomCode}.txt`;
+                a.click(); URL.revokeObjectURL(url);
+                showToast('Pool exported!', 'success');
+                return;
+            }
+            if (!packDraft) return;
+            let out = `# Booster Draft Pool\n# Cube: ${state.cubeName || 'Unknown'}\n# Date: ${new Date().toLocaleString()}\n`;
+            out += `# ${packDraft.numPacks} packs × ${packDraft.cardsPerPack} cards, ${packDraft.seats} seats\n\n`;
+            packDraft.pool.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(c => { out += `1 ${c.name}\n`; });
+            const blob = new Blob([out], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `booster-draft-${Date.now()}.txt`;
+            a.click(); URL.revokeObjectURL(url);
+            showToast('Pool exported!', 'success');
+        }
+
+        function exitPackDraft() {
+            if (liveActive) {
+                const inProgress = liveState && liveState.meta && liveState.meta.started && !deriveLive(liveState).done;
+                if (inProgress && !confirm('Leave the live draft? You can rejoin from the same room while it\u2019s still going.')) return;
+                if (liveRef) liveRef.off();
+                liveActive = false; liveRef = null; liveState = null; liveSeat = null; liveCardMap = {};
+                packDraft = null;
+                document.getElementById('packBoard').classList.remove('active');
+                document.getElementById('draftSetup').style.display = 'block';
+                updateUI();
+                return;
+            }
+            if (packDraft && !packDraft.done && packDraft.pool.length > 0) {
+                if (!confirm('Leave this booster draft? Your picks will be lost.')) return;
+            }
+            packDraft = null;
+            document.getElementById('packBoard').classList.remove('active');
+            document.getElementById('draftSetup').style.display = 'block';
+            updateUI();
+        }
+
+
+
+        /* ============================================================
+           MINNEAPOLIS DRAFT — 2-player trade-and-burn format.
+           Each round both players open a 7-card pack. Rhythm per pack:
+             picks [1, 2, 2], burns [0, 0, 2]
+             • pick 1 face-down from your own pack
+             • TRADE → take 2 from your opponent's pack
+             • TRADE back → take 2 from your own pack; last 2 are burned
+           You draft 5 of every 7 cards across both packs. Solo = you vs a bot.
+           ============================================================ */
+        function startMinneapolisDraft() {
+            const numPacks = parseInt(document.getElementById('packCount').value) || 8;
+            const packSize = 7;
+            const picks = [1, 2, 2];
+            const burns = [0, 0, 2];
+            const needed = numPacks * 2 * packSize;
+            if (needed > state.cube.length) {
+                showToast(`Need ${needed} cards but cube has ${state.cube.length}. Lower the pack count.`, 'error');
+                return;
+            }
+            const pool = packShuffle(state.cube.slice()).slice(0, needed);
+            const rounds = [];
+            let idx = 0;
+            for (let r = 0; r < numPacks; r++) {
+                rounds.push({
+                    human: pool.slice(idx, idx + packSize),
+                    bot: pool.slice(idx + packSize, idx + 2 * packSize)
+                });
+                idx += 2 * packSize;
+            }
+            packDraft = {
+                active: true,
+                format: 'minneapolis',
+                seats: 2, humanSeat: 0,
+                numPacks, packSize, cardsPerPack: packSize, picks, burns,
+                bots: [null, makeBot('Opponent')],
+                rounds,
+                packIdx: 0,
+                phase: 0,
+                picksLeftInPhase: picks[0],
+                packHuman: rounds[0].human.slice(),
+                packBot: rounds[0].bot.slice(),
+                pool: [],
+                done: false
+            };
+            document.getElementById('draftSetup').style.display = 'none';
+            document.getElementById('draftBoard').classList.remove('active');
+            document.getElementById('packBoard').classList.add('active');
+            document.getElementById('packExportBtn').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            renderPackDraft();
+            showToast('Minneapolis draft started — pick your face-down card!', 'success');
+        }
+
+        // The human holds their own pack on even phases, the opponent's on odd phases.
+        function mplsHeldByHuman(pd) {
+            return (pd.phase % 2 === 0) ? pd.packHuman : pd.packBot;
+        }
+
+        function mplsPhaseLabel(pd) {
+            const phase = pd.phase;
+            const own = (phase % 2 === 0);
+            const n = pd.picks[phase];
+            const burn = pd.burns[phase];
+            let base;
+            if (phase === 0) base = `Open your pack — pick ${n} card${n > 1 ? 's' : ''} face-down`;
+            else if (own) base = `Take ${n} from your own pack`;
+            else base = `Traded! Take ${n} from your opponent's pack`;
+            if (burn > 0) base += ` (last ${burn} get burned)`;
+            return base;
+        }
+
+        function minneapolisPick(cardName) {
+            const pd = packDraft;
+            if (!pd || pd.done || pd.format !== 'minneapolis') return;
+            const held = mplsHeldByHuman(pd);
+            const i = held.findIndex(c => c.name === cardName);
+            if (i === -1) return;
+            pd.pool.push(held.splice(i, 1)[0]);
+            pd.picksLeftInPhase--;
+            if (pd.picksLeftInPhase > 0) { renderPackDraft(); return; }
+            resolveMinneapolisPhase(pd);
+            if (!pd.done) renderPackDraft();
+        }
+
+        function resolveMinneapolisPhase(pd) {
+            const phase = pd.phase;
+            const humanHeld = (phase % 2 === 0) ? pd.packHuman : pd.packBot;
+            const botHeld   = (phase % 2 === 0) ? pd.packBot   : pd.packHuman;
+            // Opponent makes its picks for this phase from the pack it currently holds
+            const n = pd.picks[phase];
+            for (let k = 0; k < n && botHeld.length > 0; k++) pd.bots[1].pick(botHeld);
+            // Burn the discards from each player's held pack
+            const b = pd.burns[phase];
+            if (b > 0) {
+                humanHeld.splice(0, Math.min(b, humanHeld.length));
+                botHeld.splice(0, Math.min(b, botHeld.length));
+            }
+            // Next phase, or open the next pair of packs
+            pd.phase++;
+            if (pd.phase < pd.picks.length) {
+                pd.picksLeftInPhase = pd.picks[pd.phase];
+                return;
+            }
+            pd.packIdx++;
+            if (pd.packIdx >= pd.numPacks) { pd.done = true; renderPackComplete(); return; }
+            const rd = pd.rounds[pd.packIdx];
+            pd.packHuman = rd.human.slice();
+            pd.packBot = rd.bot.slice();
+            pd.phase = 0;
+            pd.picksLeftInPhase = pd.picks[0];
+        }
+
+        function renderMinneapolisBoard() {
+            const pd = packDraft;
+            const own = (pd.phase % 2 === 0);
+            const held = mplsHeldByHuman(pd);
+            document.getElementById('packTitle').textContent = `Minneapolis Draft — Pack ${pd.packIdx + 1} of ${pd.numPacks}`;
+            const heldLabel = own ? '🔓 Your pack' : "🔁 Opponent's pack";
+            document.getElementById('packMeta').innerHTML =
+                `<span class="pb-dir">${mplsPhaseLabel(pd)}</span>` +
+                `<span>${heldLabel} (${held.length} left)</span>` +
+                `<span>Pick ${pd.picksLeftInPhase} more</span>` +
+                `<span>You've drafted ${pd.pool.length}</span>`;
+            document.getElementById('boosterGrid').innerHTML =
+                held.map(card => boosterCardHTML(card, 'minneapolisPick')).join('');
+            renderPackPool();
+            renderBotStatus();
+        }
+
+
+
+        /* ============================================================
+           LIVE MINNEAPOLIS — 2 humans, real-time over Firebase.
+           Event-sourced and conflict-free: the only writes are
+           (1) the host writing the packs + card data once at start, and
+           (2) each player appending their own picks to an append-only log.
+           Everything else (whose turn, what's left in each pack, burns,
+           completion) is *derived* by replaying the log identically on
+           both clients — so there's no shared cursor to race on.
+
+           Visibility: phase 0 (the opening pick) is face-down/private;
+           the wheel and final picks are face-up. The opponent sees your
+           face-up picks live; face-down picks show as 🂠 until the draft
+           ends, then everything is revealed. (Hidden info is enforced in
+           the UI — fine for two friends in a room; it isn't cryptographic,
+           since the data lives in the shared room.)
+           ============================================================ */
+        let liveActive = false;
+        let liveRef = null;
+        let liveState = null;
+        let liveSeat = null;
+        let liveCardMap = {};
+        let lastLivePickable = false;
+        const myClientId = (() => {
+            try {
+                let id = localStorage.getItem('rotoClientId');
+                if (!id) { id = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('rotoClientId', id); }
+                return id;
+            } catch (e) { return 'c_' + Math.random().toString(36).slice(2); }
+        })();
+
+        // Which physical pack (0 = the one seat-0 opened, 1 = seat-1's) a seat holds at a given phase.
+        function heldPackOf(seat, phase) { return (phase % 2 === 0) ? seat : (1 - seat); }
+
+        function buildLiveCardMap() {
+            liveCardMap = {};
+            const cs = liveState && liveState.cards;
+            const arr = Array.isArray(cs) ? cs : (cs ? Object.values(cs) : []);
+            arr.forEach(c => {
+                if (c && c.name) {
+                    liveCardMap[c.name] = c;
+                    if (!cardDataCache[c.name]) cardDataCache[c.name] = { image: c.image_normal || c.image_small || '', type_line: c.type_line || '' };
+                }
+            });
+        }
+        function liveCard(name) {
+            return liveCardMap[name] || { name, colors: [], cmc: 0, elo: null, type_line: '', image_normal: '', image_small: '' };
+        }
+
+        function goLiveMinneapolis() {
+            if (!roomCode) { showToast('Create or join a room first', 'error'); return; }
+            liveActive = true;
+            packDraft = { active: true, format: 'minneapolis-live' };  // makes the rotisserie updateUI() bow out
+            liveRef = db.ref('live/' + roomCode);
+
+            document.getElementById('draftSetup').style.display = 'none';
+            document.getElementById('draftBoard').classList.remove('active');
+            document.getElementById('packBoard').classList.add('active');
+            document.getElementById('packExportBtn').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            claimLiveSeat(() => {
+                liveRef.on('value', snap => {
+                    liveState = snap.val() || {};
+                    buildLiveCardMap();
+                    renderLiveDraft();
+                    renderLiveChat();
+                });
+            });
+        }
+
+        function claimLiveSeat(cb) {
+            liveRef.child('seats').transaction(seats => {
+                seats = seats || {};
+                if (seats['0'] && seats['0'].clientId === myClientId) return seats;
+                if (seats['1'] && seats['1'].clientId === myClientId) return seats;
+                if (!seats['0']) { seats['0'] = { clientId: myClientId, name: playerName || 'Player 1' }; return seats; }
+                if (!seats['1']) { seats['1'] = { clientId: myClientId, name: playerName || 'Player 2' }; return seats; }
+                return; // both seats taken -> abort (spectator)
+            }, (err, committed, snap) => {
+                const seats = (snap && snap.val()) || {};
+                if (seats['0'] && seats['0'].clientId === myClientId) liveSeat = 0;
+                else if (seats['1'] && seats['1'].clientId === myClientId) liveSeat = 1;
+                else liveSeat = null;
+                if (liveSeat === null) showToast('This live room already has two players.', 'error');
+                else if (playerName && seats[String(liveSeat)] && seats[String(liveSeat)].name !== playerName) {
+                    liveRef.child('seats/' + liveSeat + '/name').set(playerName);
+                }
+                if (cb) cb();
+            });
+        }
+
+        function hostStartLive() {
+            if (liveSeat !== 0) { showToast('Only Player 1 (host) can start.', 'error'); return; }
+            if (!(state.cube && state.cube.length)) { showToast('Load a cube first', 'error'); return; }
+            const numPacks = parseInt(document.getElementById('packCount').value) || 8;
+            const packSize = 7;
+            const needed = numPacks * 2 * packSize;
+            if (needed > state.cube.length) { showToast(`Need ${needed} cards but cube has ${state.cube.length}. Lower the pack count.`, 'error'); return; }
+
+            const pool = packShuffle(state.cube.slice()).slice(0, needed);
+            const packs = {};
+            const cardList = [];
+            const seen = new Set();
+            let idx = 0;
+            for (let r = 0; r < numPacks; r++) {
+                const a = pool.slice(idx, idx + packSize);
+                const b = pool.slice(idx + packSize, idx + 2 * packSize);
+                idx += 2 * packSize;
+                packs[r] = { '0': a.map(c => c.name), '1': b.map(c => c.name) };
+                [...a, ...b].forEach(c => {
+                    if (seen.has(c.name)) return;
+                    seen.add(c.name);
+                    cardList.push({
+                        name: c.name, colors: c.colors || [], cmc: c.cmc || 0,
+                        elo: (c.elo ?? null), type_line: c.type_line || '',
+                        image_normal: c.image_normal || '', image_small: c.image_small || ''
+                    });
+                });
+            }
+            const meta = {
+                format: 'minneapolis', numPacks, packSize, picks: [1, 2, 2], burns: [0, 0, 2],
+                privatePhases: [0], cubeName: state.cubeName || '', started: true, ts: Date.now()
+            };
+            liveRef.update({ packs, cards: cardList, meta });
+            showToast('Live draft started!', 'success');
+        }
+
+        // ---- Replay the log into a view both clients compute identically ----
+        function deriveLive(ls) {
+            const meta = (ls && ls.meta) || {};
+            const sched = meta.picks || [1, 2, 2];
+            const nPhases = sched.length;
+            const nRounds = meta.numPacks || 0;
+            const allPicks = ls && ls.picks ? Object.values(ls.picks) : [];
+            const made = (r, p, s) => {
+                let n = 0;
+                for (const pk of allPicks) if (pk.round === r && pk.phase === p && pk.seat === s) n++;
+                return n;
+            };
+            const phaseComplete = (r, p) => made(r, p, 0) >= sched[p] && made(r, p, 1) >= sched[p];
+
+            let cr = -1, cp = -1, done = false;
+            for (let r = 0; r < nRounds && cr < 0; r++) {
+                for (let p = 0; p < nPhases; p++) {
+                    if (!phaseComplete(r, p)) { cr = r; cp = p; break; }
+                }
+            }
+            if (cr < 0) done = true;
+
+            const heldBySeat = { 0: [], 1: [] };
+            if (!done && ls.packs && ls.packs[cr]) {
+                for (const seat of [0, 1]) {
+                    const packIdx = heldPackOf(seat, cp);
+                    const full = ((ls.packs[cr][String(packIdx)]) || []).slice();
+                    const removed = new Set();
+                    for (const pk of allPicks) {
+                        if (pk.round !== cr) continue;
+                        if (pk.phase > cp) continue;
+                        if (heldPackOf(pk.seat, pk.phase) === packIdx) removed.add(pk.card);
+                    }
+                    heldBySeat[seat] = full.filter(nm => !removed.has(nm)).map(liveCard);
+                }
+            }
+
+            const poolBySeat = { 0: [], 1: [] };
+            for (const pk of allPicks) poolBySeat[pk.seat].push(pk);
+
+            return { done, round: done ? null : cr, phase: done ? null : cp, heldBySeat, made, sched, nPhases, nRounds, poolBySeat, meta };
+        }
+
+        function liveMnPhaseLabel(phase, sched, burns, privatePhases) {
+            const own = (phase % 2 === 0);
+            const n = sched[phase];
+            const burn = (burns && burns[phase]) || 0;
+            let base;
+            if (phase === 0) base = `Open your pack — pick ${n} face-down`;
+            else if (own) base = `Take ${n} from your own pack`;
+            else base = `Traded! Take ${n} from your opponent's pack`;
+            if (burn > 0) base += ` (last ${burn} burned)`;
+            return base;
+        }
+
+        function oppName() {
+            const oppSeat = 1 - liveSeat;
+            return (liveState && liveState.seats && liveState.seats[String(oppSeat)] && liveState.seats[String(oppSeat)].name) || `Player ${oppSeat + 1}`;
+        }
+
+        function livePick(cardName) {
+            if (!liveActive || liveSeat === null || !liveState) return;
+            const v = deriveLive(liveState);
+            if (v.done) return;
+            const owe = v.sched[v.phase] - v.made(v.round, v.phase, liveSeat);
+            if (owe <= 0) { showToast('Waiting for your opponent to finish this round.', 'info'); return; }
+            const held = v.heldBySeat[liveSeat] || [];
+            if (!held.some(c => c.name === cardName)) { showToast('Card not available', 'error'); return; }
+            const isPublic = !((liveState.meta.privatePhases || [0]).includes(v.phase));
+            liveRef.child('picks').push({ round: v.round, phase: v.phase, seat: liveSeat, card: cardName, public: isPublic, ts: Date.now() });
+        }
+
+        function renderLiveDraft() {
+            if (!liveState || !liveState.meta || !liveState.meta.started) { renderLiveLobby(); return; }
+            const v = deriveLive(liveState);
+            if (v.done) { renderLiveComplete(v); return; }
+
+            const own = (v.phase % 2 === 0);
+            const myHeld = v.heldBySeat[liveSeat] || [];
+            const owe = v.sched[v.phase] - v.made(v.round, v.phase, liveSeat);
+            const oppOwe = v.sched[v.phase] - v.made(v.round, v.phase, 1 - liveSeat);
+
+            document.getElementById('packTitle').textContent = `Minneapolis (Live) — Pack ${v.round + 1} of ${v.nRounds}`;
+            const heldLabel = own ? '🔓 Your pack' : "🔁 Opponent's pack";
+            const faceTag = (liveState.meta.privatePhases || [0]).includes(v.phase) ? '🂠 face-down' : '👁 face-up';
+            let status;
+            if (owe > 0) status = `Pick ${owe} more`;
+            else if (oppOwe > 0) status = '⏳ Waiting for opponent…';
+            else status = 'Advancing…';
+            document.getElementById('packMeta').innerHTML =
+                `<span class="pb-dir">${liveMnPhaseLabel(v.phase, v.sched, liveState.meta.burns, liveState.meta.privatePhases)}</span>` +
+                `<span>${heldLabel} (${myHeld.length} left)</span>` +
+                `<span>${faceTag}</span>` +
+                `<span>${status}</span>`;
+            document.getElementById('packExportBtn').style.display = 'none';
+
+            const grid = document.getElementById('boosterGrid');
+            if (owe > 0) {
+                grid.innerHTML = myHeld.map(c => boosterCardHTML(c, 'livePick')).join('');
+            } else {
+                grid.innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
+                    <h2>⏳ Waiting for ${escapeHtml(oppName())}</h2>
+                    <div class="pc-sub">They're still picking this round. Hang tight — or say hi in the chat.</div></div>`;
+            }
+
+            // Lightweight "your turn" nudge
+            const pickableNow = owe > 0;
+            if (pickableNow && !lastLivePickable) showToast('Your pick!', 'success');
+            lastLivePickable = pickableNow;
+
+            renderLivePools(v);
+        }
+
+        function renderLivePools(v) {
+            const mine = (v.poolBySeat[liveSeat] || []).map(pk => liveCard(pk.card)).filter(Boolean);
+            renderPoolPanel(mine);
+
+            const oppSeat = 1 - liveSeat;
+            const oppPicks = v.poolBySeat[oppSeat] || [];
+            const reveal = v.done;
+            const revealed = oppPicks.filter(pk => pk.public || reveal).map(pk => liveCard(pk.card)).filter(Boolean);
+            const hidden = oppPicks.length - revealed.length;
+
+            const cc = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+            revealed.forEach(c => (c.colors || []).forEach(col => { if (cc[col] != null) cc[col]++; }));
+            const sym = { W: '⚪', U: '🔵', B: '⚫', R: '🔴', G: '🟢' };
+            const topCols = Object.entries(cc).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([c]) => sym[c]).join('') || '—';
+
+            let html = `<div class="bs-row"><span><strong>You</strong></span><span>${mine.length} cards</span></div>`;
+            html += `<div class="bs-row"><span>${escapeHtml(oppName())}</span><span class="bs-colors">${topCols} · ${revealed.length} shown${hidden > 0 ? ` · 🂠${hidden}` : ''}</span></div>`;
+
+            if (revealed.length) {
+                const sorted = revealed.slice().sort((a, b) =>
+                    getColorSortOrder(a.colors, a.type_line) - getColorSortOrder(b.colors, b.type_line) ||
+                    (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name));
+                html += `<div style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px;">`;
+                html += `<div class="text-muted" style="font-size:0.72rem; margin-bottom:4px;">${escapeHtml(oppName())}'s face-up picks${hidden > 0 ? ` (+${hidden} face-down)` : ''}</div>`;
+                html += sorted.map(c => {
+                    const safe = c.name.replace(/'/g, "\\'");
+                    return `<div class="pm-row"><div class="color-indicator ${getColorClass(c.colors, c.type_line)}"></div>
+                        <span class="pm-name" onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">${c.name}</span></div>`;
+                }).join('');
+                html += `</div>`;
+            }
+            document.getElementById('botStatus').innerHTML = html;
+        }
+
+        function renderLiveLobby() {
+            const seats = (liveState && liveState.seats) || {};
+            const p0 = (seats['0'] && seats['0'].name) || '—';
+            const p1 = (seats['1'] && seats['1'].name) || 'waiting…';
+            const isHost = liveSeat === 0;
+            const haveCube = !!(state.cube && state.cube.length);
+            const bothHere = !!(seats['0'] && seats['1']);
+
+            document.getElementById('packTitle').textContent = 'Minneapolis (Live) — Lobby';
+            document.getElementById('packMeta').innerHTML = `<span>${liveSeat === null ? 'Spectator (room full)' : 'You are Player ' + (liveSeat + 1)}</span>`;
+            document.getElementById('packExportBtn').style.display = 'none';
+
+            let actions = '';
+            if (isHost) {
+                if (!haveCube) actions = `<div class="pc-sub">Load a cube back in setup to host this draft.</div>`;
+                else if (!bothHere) actions = `<div class="pc-sub">Waiting for your friend to join room <strong>${roomCode}</strong>…</div>`;
+                else actions = `<button onclick="hostStartLive()">Start the draft</button>`;
+            } else if (liveSeat === 1) {
+                actions = `<div class="pc-sub">Waiting for ${escapeHtml(p0)} to start the draft…</div>`;
+            } else {
+                actions = `<div class="pc-sub">This room's live draft already has two players.</div>`;
+            }
+
+            document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
+                <h2>🌐 Live Minneapolis</h2>
+                <div class="pc-sub">Player 1: <strong>${escapeHtml(p0)}</strong> &nbsp;·&nbsp; Player 2: <strong>${escapeHtml(p1)}</strong></div>
+                <div class="pc-sub">Room code: <strong>${roomCode}</strong> — share it with your friend (they pick Minneapolis → Play live in the same room).</div>
+                ${actions}
+                <div style="margin-top:14px;"><button class="secondary" onclick="exitPackDraft()">Back to setup</button></div>
+            </div>`;
+            document.getElementById('botStatus').innerHTML = '';
+            document.getElementById('poolMini').innerHTML = '<p class="text-muted">No picks yet</p>';
+            document.getElementById('poolCount').textContent = '0';
+            document.getElementById('poolCurve').innerHTML = '';
+        }
+
+        function renderLiveComplete(v) {
+            document.getElementById('packTitle').textContent = 'Live draft complete! 🎉';
+            document.getElementById('packMeta').innerHTML = `<span>All face-down picks are now revealed.</span>`;
+            document.getElementById('packExportBtn').style.display = 'inline-block';
+            document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
+                <h2>🎉 Draft complete</h2>
+                <div class="pc-sub">Add basics and build your 40. Both pools are revealed in the panel.</div>
+                <button onclick="exportPackPool()">📥 Export My Pool</button>
+                <button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Leave</button>
+            </div>`;
+            renderLivePools(v);
+        }
+
+        function renderLiveChat() {
+            const raw = liveState && liveState.chat;
+            const arr = raw ? Object.values(raw).sort((a, b) => a.timestamp - b.timestamp) : [];
+            renderChatMessagesInto(arr);
+        }
+
+
     </script>
 </body>
 </html>
