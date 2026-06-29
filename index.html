@@ -1757,6 +1757,21 @@
             font-weight: 700; border: none; border-radius: 22px; padding: 10px 18px;
             cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.45); font-size: 0.9rem;
         }
+        .deck-stats { font-size: 0.74rem; color: #8a93a6; margin: 2px 2px 12px; letter-spacing: 0.2px; }
+        .export-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.62); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .export-box { background: #15151f; border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; width: min(560px, 94vw); max-height: 88vh; display: flex; flex-direction: column; padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+        .export-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .export-head h3 { margin: 0; }
+        .export-close { cursor: pointer; font-size: 1.1rem; color: #aab; padding: 2px 8px; border-radius: 6px; }
+        .export-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .export-fmts { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+        .exp-fmt-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); color: #cdd; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; }
+        .exp-fmt-btn.active { background: linear-gradient(135deg, #4ecdc4, #44a08d); color: #06231f; border-color: transparent; font-weight: 700; }
+        .export-count { margin-left: auto; font-size: 0.78rem; color: #8a93a6; }
+        #exportText { width: 100%; flex: 1; min-height: 220px; background: #0c0c14; color: #dde; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 12px; font-family: ui-monospace, monospace; font-size: 0.82rem; resize: vertical; }
+        .export-actions { display: flex; gap: 10px; margin-top: 12px; }
+        .export-copy { background: linear-gradient(135deg, #4ecdc4, #44a08d); color: #06231f; font-weight: 700; border: none; border-radius: 10px; padding: 10px 18px; cursor: pointer; font-size: 0.95rem; }
+        .export-hint { font-size: 0.76rem; margin-top: 10px; color: #8a93a6; }
     </style>
 </head>
 <body>
@@ -2078,7 +2093,7 @@ Supports:
                         <div class="pb-meta" id="packMeta"></div>
                     </div>
                     <div class="pb-spacer">
-                        <label class="elo-toggle" title="Show each card's ELO pick rating"><input type="checkbox" id="eloToggle" onchange="toggleElo()"> Show ELO</label>
+                        <label class="elo-toggle" title="Show each card's draft grade (A+ to F, from cube ELO)"><input type="checkbox" id="eloToggle" onchange="toggleElo()"> Show grades</label>
                         <button class="small secondary" onclick="exportPackPool()" id="packExportBtn">📥 Export Pool</button>
                         <button class="small secondary" onclick="exitPackDraft()">Back to Setup</button>
                     </div>
@@ -2099,6 +2114,7 @@ Supports:
                                     </select>
                                 </div>
                                 <div class="pool-curve" id="poolCurve"></div>
+                                <div class="deck-stats" id="deckStats"></div>
                                 <div class="pool-mini" id="poolMini">
                                     <p class="text-muted">No picks yet</p>
                                 </div>
@@ -2129,6 +2145,27 @@ Supports:
             <div class="cr-grip" id="crGrip" title="Drag to resize">⤡</div>
         </div>
         <button class="reader-reopen" id="readerReopen" style="display: none;" onclick="reopenCardReader()">🔍 Card Reader</button>
+
+        <div class="export-modal" id="exportModal" style="display:none;">
+            <div class="export-box">
+                <div class="export-head">
+                    <h3>📤 Export deck</h3>
+                    <span class="export-close" title="Close" onclick="closeExportModal()">✕</span>
+                </div>
+                <div class="export-fmts">
+                    <button class="exp-fmt-btn active" data-fmt="arena" onclick="setExportFmt('arena')">MTG Arena</button>
+                    <button class="exp-fmt-btn" data-fmt="moxfield" onclick="setExportFmt('moxfield')">Moxfield</button>
+                    <button class="exp-fmt-btn" data-fmt="plain" onclick="setExportFmt('plain')">Plain text</button>
+                    <span class="export-count" id="exportCount"></span>
+                </div>
+                <textarea id="exportText" readonly spellcheck="false"></textarea>
+                <div class="export-actions">
+                    <button class="export-copy" onclick="copyExport()">📋 Copy to clipboard</button>
+                    <button class="secondary" onclick="downloadExport()">⬇ Download .txt</button>
+                </div>
+                <div class="export-hint">In Arena, open <strong>Decks → Import</strong> and paste. Cards in your sideboard export under a <em>Sideboard</em> section; you'll still want to add basic lands.</div>
+            </div>
+        </div>
         
         <!-- Toast -->
         <div class="toast" id="toast"></div>
@@ -3079,6 +3116,7 @@ Supports:
                     if (startPackBtn) startPackBtn.disabled = false;
                     draftPool = null;   // new cube → reload its own pool on next sync
                     syncDraftPool();
+                    gradeThresholds = computeGradeThresholds(state.cube);
                     
                     // Pre-fill the CubeCobra input if we have an ID
                     if (state.cubeId) {
@@ -3201,7 +3239,7 @@ Supports:
                 // Show ELO when sorting by ELO, otherwise show CMC
                 let statDisplay = '';
                 if (sortBy === 'elo' && card.elo !== null) {
-                    statDisplay = `<span style="color: #f0ad4e; font-size: 0.75rem; margin-left: 8px;" title="ELO Rating">${Math.round(card.elo)}</span>`;
+                    statDisplay = `<span style="color: ${gradeColor(card.elo)}; font-size: 0.75rem; margin-left: 8px; font-weight:700;" title="Draft grade">${eloBadge(card.elo)}</span>`;
                 } else if (card.cmc !== undefined) {
                     statDisplay = `<span style="color: #888; font-size: 0.75rem; margin-left: 8px;">${card.cmc}</span>`;
                 }
@@ -4618,6 +4656,81 @@ Respond with ONLY this JSON (no markdown, no extra text):
             packDraft = null;
             startPackDraft();   // routes by the format dropdown, drawing from the now-smaller pool
         }
+
+        /* ============ ELO → friendly letter grades (computed once vs the full cube) ============ */
+        let gradeThresholds = null;
+        const GRADE_BANDS = [['A+', 0.97], ['A', 0.90], ['A-', 0.83], ['B+', 0.73], ['B', 0.60], ['B-', 0.47], ['C+', 0.35], ['C', 0.25], ['C-', 0.17], ['D+', 0.10], ['D', 0.05], ['D-', 0.02], ['F', 0.0]];
+        function _quantile(sorted, p) { if (!sorted.length) return null; const i = Math.round(p * (sorted.length - 1)); return sorted[Math.max(0, Math.min(sorted.length - 1, i))]; }
+        function computeGradeThresholds(cube) {
+            const elos = (cube || []).filter(c => c.elo != null).map(c => c.elo).sort((a, b) => a - b);
+            if (!elos.length) return null;
+            return GRADE_BANDS.map(([g, p]) => ({ grade: g, min: _quantile(elos, p) }));
+        }
+        function gradeForElo(elo) {
+            if (elo == null || !gradeThresholds) return null;
+            for (const t of gradeThresholds) { if (elo >= t.min) return t.grade; }
+            return 'F';
+        }
+        function eloBadge(elo) { if (elo == null) return ''; return gradeForElo(elo) || String(Math.round(elo)); }
+        function gradeColor(elo) {
+            const g = gradeForElo(elo); if (!g) return '#f0ad4e';
+            const L = g[0];
+            return L === 'A' ? '#4ade80' : L === 'B' ? '#5fd0c4' : L === 'C' ? '#cbd5e1' : L === 'D' ? '#fbbf24' : '#f87171';
+        }
+
+        /* ============ Export to Arena / Moxfield with one-click copy ============ */
+        let exportCards = [], exportFmt = 'arena';
+        function buildDeckList(cards, fmt) {
+            const main = cards.filter(c => !sideboardNames.has(c.name));
+            const side = cards.filter(c => sideboardNames.has(c.name));
+            const tally = arr => { const m = new Map(); arr.forEach(c => m.set(c.name, (m.get(c.name) || 0) + 1)); return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])); };
+            const ln = ([n, k]) => `${k} ${n}`;
+            const ml = tally(main), sl = tally(side);
+            if (fmt === 'moxfield') {
+                let o = ml.map(ln).join('\n');
+                if (sl.length) o += '\n\n' + sl.map(e => 'SB: ' + ln(e)).join('\n');
+                return o;
+            }
+            if (fmt === 'plain') {
+                let o = ml.map(ln).join('\n');
+                if (sl.length) o += '\n\nSideboard\n' + sl.map(ln).join('\n');
+                return o;
+            }
+            let o = 'Deck\n' + ml.map(ln).join('\n');   // arena
+            if (sl.length) o += '\n\nSideboard\n' + sl.map(ln).join('\n');
+            return o;
+        }
+        function renderExport() {
+            document.getElementById('exportText').value = buildDeckList(exportCards, exportFmt);
+            const main = exportCards.filter(c => !sideboardNames.has(c.name)).length;
+            const side = exportCards.length - main;
+            document.getElementById('exportCount').textContent = `${main} maindeck${side ? ` · ${side} sideboard` : ''}`;
+        }
+        function setExportFmt(f) {
+            exportFmt = f;
+            document.querySelectorAll('.exp-fmt-btn').forEach(b => b.classList.toggle('active', b.dataset.fmt === f));
+            renderExport();
+        }
+        function openExportModal(cards) {
+            exportCards = cards || [];
+            setExportFmt('arena');
+            document.getElementById('exportModal').style.display = 'flex';
+        }
+        function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
+        function copyExport() {
+            const t = document.getElementById('exportText');
+            const text = t.value;
+            const ok = () => showToast('Copied! Paste into Arena → Decks → Import.', 'success');
+            const fb = () => { t.focus(); t.select(); try { document.execCommand('copy'); ok(); } catch (e) { showToast('Press Ctrl/Cmd+C to copy', 'info'); } };
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, fb);
+            else fb();
+        }
+        function downloadExport() {
+            const blob = new Blob([document.getElementById('exportText').value], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `draft-${exportFmt}-${Date.now()}.txt`; a.click(); URL.revokeObjectURL(url);
+        }
         let showElo = false;
         let mnStage = [];        // card names currently selected (staged) for the active phase
         let mnStageKey = '';     // round:phase the stage belongs to (reset when it changes)
@@ -4666,7 +4779,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             grid.innerHTML = held.map(card => {
                 const safe = card.name.replace(/'/g, "\\'");
                 const img = card.image_normal || card.image_small || '';
-                const elo = (showElo && card.elo != null) ? `<div class="bc-elo">${Math.round(card.elo)}</div>` : '';
+                const elo = (showElo && card.elo != null) ? `<div class="bc-elo" style="color:${gradeColor(card.elo)}">${eloBadge(card.elo)}</div>` : '';
                 const selected = stagedSet.has(card.name);
                 const willBurn = !selected && full && burnCount > 0;   // once your picks are set, the rest of the pack burns
                 const cls = 'booster-card mn-card' + (selected ? ' mn-selected' : '') + (willBurn ? ' mn-burn' : '');
@@ -4980,7 +5093,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function boosterCardHTML(card, handler) {
             const safe = card.name.replace(/'/g, "\\'");
             const img = card.image_normal || card.image_small || '';
-            const elo = (showElo && card.elo != null) ? `<div class="bc-elo">${Math.round(card.elo)}</div>` : '';
+            const elo = (showElo && card.elo != null) ? `<div class="bc-elo" style="color:${gradeColor(card.elo)}">${eloBadge(card.elo)}</div>` : '';
             if (img) {
                 return `<div class="booster-card" onclick="${handler}('${safe}')"
                      onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
@@ -5019,7 +5132,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         // A single card "chip". `action` ('demote' | 'promote') adds a move button.
         function poolChipHTML(c, action) {
             const safe = c.name.replace(/'/g, "\\'");
-            const eloTag = (showElo && c.elo != null) ? ` <span style="color:#f0ad4e; font-size:0.72rem;">${Math.round(c.elo)}</span>` : '';
+            const eloTag = (showElo && c.elo != null) ? ` <span style="color:${gradeColor(c.elo)}; font-size:0.72rem; font-weight:700;">${eloBadge(c.elo)}</span>` : '';
             let btn = '';
             if (action === 'demote') btn = `<span class="chip-move" title="Move to sideboard" onclick="togglePoolCardSideboard('${safe}')">⤓</span>`;
             else if (action === 'promote') btn = `<span class="chip-move" title="Move to deck" onclick="togglePoolCardSideboard('${safe}')">⤒</span>`;
@@ -5077,6 +5190,23 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const maxC = Math.max(1, ...totals);
             const H = 64;
             const segOrder = ['color-W', 'color-U', 'color-B', 'color-R', 'color-G', 'color-M', 'color-C', 'color-L'];
+
+            // Small, unobtrusive deck-stats line
+            const ds = document.getElementById('deckStats');
+            if (ds) {
+                const isLandC = c => (c.type_line || '').toLowerCase().includes('land');
+                const spells = deck.filter(c => !isLandC(c));
+                const landN = deck.length - spells.length;
+                const creatures = spells.filter(c => (c.type_line || '').toLowerCase().includes('creature')).length;
+                const avgMv = spells.length ? (spells.reduce((s, c) => s + (c.cmc || 0), 0) / spells.length) : 0;
+                const pip = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+                deck.forEach(c => (c.colors || []).forEach(col => { if (pip[col] != null) pip[col]++; }));
+                const sym = { W: '⚪', U: '🔵', B: '⚫', R: '🔴', G: '🟢' };
+                const pipStr = ['W', 'U', 'B', 'R', 'G'].filter(k => pip[k]).map(k => `${sym[k]}${pip[k]}`).join(' ');
+                ds.innerHTML = deck.length
+                    ? `${spells.length} spell${spells.length !== 1 ? 's' : ''} · ${landN} land${landN !== 1 ? 's' : ''} · avg MV ${avgMv.toFixed(1)} · ${creatures} creature${creatures !== 1 ? 's' : ''}${pipStr ? ' · ' + pipStr : ''}`
+                    : '';
+            }
             document.getElementById('poolCurve').innerHTML = totals.map((n, cmc) => {
                 const px = n === 0 ? 2 : Math.max(6, Math.round((n / maxC) * H));
                 const b = buckets[cmc];
@@ -5127,7 +5257,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function deckCardHTML(c, action) {
             const safe = c.name.replace(/'/g, "\\'");
             const img = c.image_small || c.image_normal || '';
-            const elo = (showElo && c.elo != null) ? `<span class="dc-elo">${Math.round(c.elo)}</span>` : '';
+            const elo = (showElo && c.elo != null) ? `<span class="dc-elo" style="color:${gradeColor(c.elo)}">${eloBadge(c.elo)}</span>` : '';
             const btn = action === 'demote'
                 ? `<span class="dc-move" title="Move to sideboard" onclick="event.stopPropagation(); togglePoolCardSideboard('${safe}')">\u2913</span>`
                 : action === 'promote'
@@ -5187,7 +5317,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🎉 That's a wrap</h2>
                 <div class="pc-sub">Your full pool is on the right. Export it as a deck list${pd.fixedPool ? ', or run the remaining pool back' : ' or run it back'}.</div>
-                <button onclick="exportPackPool()">📥 Export Pool</button>
+                <button onclick="exportPackPool()">📤 Export / Copy to Arena</button>
                 ${nextBtn}
                 ${(pd.fixedPool && draftPool) ? '<button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Back to Setup</button>' : ''}
             </div>`;
@@ -5206,34 +5336,16 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function exportPackPool() {
-            const writeLists = (cards) => {
-                const deck = cards.filter(c => !sideboardNames.has(c.name)).sort((a, b) => a.name.localeCompare(b.name));
-                const sb = cards.filter(c => sideboardNames.has(c.name)).sort((a, b) => a.name.localeCompare(b.name));
-                let s = deck.map(c => `1 ${c.name}`).join('\n') + '\n';
-                if (sb.length) s += '\nSideboard\n' + sb.map(c => `1 ${c.name}`).join('\n') + '\n';
-                return s;
-            };
-            const download = (out, fname) => {
-                const blob = new Blob([out], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = fname;
-                a.click(); URL.revokeObjectURL(url);
-                showToast('Pool exported!', 'success');
-            };
-            if (liveActive) {
+            let cards;
+            if (liveActive && liveState) {
                 const v = deriveLive(liveState);
-                const mine = (v.poolBySeat[liveSeat] || []).map(pk => liveCard(pk.card)).filter(Boolean);
-                let out = `# Minneapolis Live Draft Pool\n# Room: ${roomCode}\n# Cube: ${(liveState.meta && liveState.meta.cubeName) || 'Unknown'}\n# Date: ${new Date().toLocaleString()}\n\n`;
-                out += writeLists(mine);
-                download(out, `minneapolis-${roomCode}.txt`);
-                return;
+                cards = (v.poolBySeat[liveSeat] || []).map(pk => liveCard(pk.card)).filter(Boolean);
+            } else if (packDraft && packDraft.pool) {
+                cards = packDraft.pool;
+            } else {
+                cards = lastPoolCards || [];
             }
-            if (!packDraft) return;
-            let out = `# Booster Draft Pool\n# Cube: ${state.cubeName || 'Unknown'}\n# Date: ${new Date().toLocaleString()}\n`;
-            out += `# ${packDraft.numPacks} packs × ${packDraft.cardsPerPack} cards, ${packDraft.seats} seats\n\n`;
-            out += writeLists(packDraft.pool);
-            download(out, `booster-draft-${Date.now()}.txt`);
+            openExportModal(cards);
         }
 
         function exitPackDraft() {
@@ -5517,6 +5629,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 liveRef.on('value', snap => {
                     liveState = snap.val() || {};
                     liveHostBusy = false;
+                    if (liveState.meta && liveState.meta.eloThresholds) gradeThresholds = liveState.meta.eloThresholds;
                     buildLiveCardMap();
                     renderLiveDraft();
                     renderLiveChat();
@@ -5607,7 +5720,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const meta = {
                 format: 'minneapolis', numPacks, packSize, picks: [1, 2, 2], burns: [0, 0, 2],
                 privatePhases: [0], cubeName, started: true, ts,
-                fixedPool: !!fixedPoolOn, draftNumber: fixedPoolOn ? lp.draftNumber : 1
+                fixedPool: !!fixedPoolOn, draftNumber: fixedPoolOn ? lp.draftNumber : 1,
+                eloThresholds: gradeThresholds || computeGradeThresholds(state.cube)
             };
             const update = { packs, cards: cardList, meta, picks: null };   // picks:null resets the log for the new draft
             if (fixedPoolOn) update.pool = lp;
@@ -5832,7 +5946,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🎉 Draft complete</h2>
                 <div class="pc-sub">Add basics and build your 40. Both pools are revealed in the panel.${info.on ? ' Play it out, then run the remaining pool back.' : ''}</div>
-                <button onclick="exportPackPool()">📥 Export My Pool</button>
+                <button onclick="exportPackPool()">📤 Export / Copy to Arena</button>
                 ${nextHtml}
                 <button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Leave</button>
             </div>`;
