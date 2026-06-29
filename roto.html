@@ -1574,7 +1574,7 @@
         .booster-card.no-img { display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; }
         .booster-card.no-img .bc-fallback { font-size: 0.8rem; color: #ccd; }
 
-        .pack-cols { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
+        .pack-cols { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
         @media (max-width: 900px) { .pack-cols { grid-template-columns: 1fr; } }
 
         .pool-panel {
@@ -1584,14 +1584,16 @@
             padding: 16px;
         }
         .pool-panel h3 { margin-bottom: 12px; font-size: 1rem; }
-        .pool-curve { display: flex; gap: 4px; align-items: flex-end; height: 70px; margin-bottom: 14px; }
-        .pool-curve .pc-bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-        .pool-curve .pc-fill { width: 100%; background: linear-gradient(180deg, #4ecdc4, #44a08d); border-radius: 3px 3px 0 0; min-height: 2px; }
-        .pool-curve .pc-label { font-size: 0.65rem; color: #889; }
+        .pool-curve { display: flex; gap: 4px; align-items: flex-end; height: 88px; margin-bottom: 14px; }
+        .pool-curve .pc-bar { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+        .pool-curve .pc-count { font-size: 0.66rem; color: #cdd; line-height: 1; margin-bottom: 2px; min-height: 0.7em; }
+        .pool-curve .pc-fill { width: 100%; background: linear-gradient(180deg, #4ecdc4, #44a08d); border-radius: 3px 3px 0 0; transition: height 0.18s ease; }
+        .pool-curve .pc-fill.empty { background: rgba(255,255,255,0.06); }
+        .pool-curve .pc-label { font-size: 0.65rem; color: #889; margin-top: 4px; }
         .pool-mini { font-size: 0.8rem; }
-        .pool-mini .pm-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; }
-        .pool-mini .pm-row .color-indicator { position: static; }
-        .pool-mini .pm-name:hover { color: #4ecdc4; cursor: pointer; }
+        .pm-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 0.8rem; }
+        .pm-row .color-indicator { position: static; }
+        .pm-name:hover { color: #4ecdc4; cursor: pointer; }
 
         .bot-status { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
         .bot-status .bs-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #9aa; padding: 2px 0; }
@@ -1646,6 +1648,44 @@
         .pile-details[open] > summary::before { transform: rotate(90deg); }
         .pile-body { max-height: 320px; overflow-y: auto; margin-top: 6px; padding-right: 4px; }
         .pile-empty { color: #667; font-size: 0.78rem; padding: 4px 0; }
+        .chat-header { cursor: grab; user-select: none; touch-action: none; }
+        .chat-header:active { cursor: grabbing; }
+        .chat-header-controls { display: flex; align-items: center; gap: 8px; }
+        .chat-ctrl {
+            cursor: pointer; color: #9aa; font-size: 0.95rem; line-height: 1;
+            padding: 2px 5px; border-radius: 5px;
+        }
+        .chat-ctrl:hover { background: rgba(255,255,255,0.14); color: #fff; }
+        .chat-drag-hint { color: #667; font-size: 0.72rem; margin-left: 4px; }
+        .chat-reopen {
+            position: fixed; bottom: 60px; right: 20px; z-index: 101;
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%); color: #07201d;
+            font-weight: 700; border: none; border-radius: 22px; padding: 10px 18px;
+            cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.45); font-size: 0.9rem;
+        }
+        .chat-reopen .chat-unread { margin-left: 4px; }
+        /* Right column (card reader + table) */
+        .pack-side { display: flex; flex-direction: column; gap: 16px; }
+        .card-reader-empty { color: #667; font-size: 0.82rem; padding: 24px 8px; text-align: center; }
+        #cardReader .reader-img { width: 100%; border-radius: 8px; display: block; margin-bottom: 8px; }
+        #cardReader .reader-name { font-weight: 600; font-size: 0.92rem; }
+        #cardReader .reader-type { color: #9aa; font-size: 0.78rem; margin-top: 2px; }
+        #cardReader .reader-oracle { font-size: 0.8rem; color: #cdd; margin-top: 8px; white-space: pre-wrap; line-height: 1.35; }
+
+        /* Full-width pool dock below the cards */
+        .pool-dock { margin-top: 8px; }
+        .pool-dock-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+        .pool-dock-head h3 { margin: 0; }
+        .pool-sort {
+            margin-left: auto; padding: 6px 10px; background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.8rem; cursor: pointer;
+        }
+        .pool-columns { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 6px; }
+        .pool-col { flex: 1 1 0; min-width: 130px; }
+        .pool-col .pcg-head {
+            font-size: 0.72rem; color: #8ad8d0; text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 4px; margin-bottom: 6px;
+        }
     </style>
 </head>
 <body>
@@ -1966,17 +2006,33 @@ Supports:
                         <div class="mn-confirm-bar" id="mnConfirmBar" style="display:none;"></div>
                         <div class="booster-grid" id="boosterGrid"></div>
                     </div>
-                    <div>
+                    <div class="pack-side">
                         <div class="pool-panel">
-                            <h3>Your Pool (<span id="poolCount">0</span>)</h3>
-                            <div class="pool-curve" id="poolCurve"></div>
-                            <div class="pool-mini" id="poolMini">
-                                <p class="text-muted">No picks yet</p>
-                            </div>
+                            <h3>🔍 Card Reader</h3>
+                            <div id="cardReader" class="card-reader-empty">Hover a card to read it here</div>
                         </div>
-                        <div class="pool-panel" style="margin-top:16px;">
+                        <div class="pool-panel">
                             <h3>Table</h3>
                             <div class="bot-status" id="botStatus"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pool-dock">
+                    <div class="pool-panel">
+                        <div class="pool-dock-head">
+                            <h3>Your Pool (<span id="poolCount">0</span>)</h3>
+                            <select class="pool-sort" id="poolSort" onchange="onPoolSortChange()">
+                                <option value="cmc" selected>Sort: Mana Value</option>
+                                <option value="color">Sort: Color</option>
+                                <option value="type">Sort: Type</option>
+                                <option value="elo">Sort: Power (ELO)</option>
+                                <option value="name">Sort: Name</option>
+                            </select>
+                        </div>
+                        <div class="pool-curve" id="poolCurve"></div>
+                        <div class="pool-mini" id="poolMini">
+                            <p class="text-muted">No picks yet</p>
                         </div>
                     </div>
                 </div>
@@ -1996,9 +2052,12 @@ Supports:
         
         <!-- Chat Panel -->
         <div class="chat-panel collapsed" id="chatPanel">
-            <div class="chat-header" onclick="toggleChat()">
-                <h4>💬 Draft Chat <span class="chat-unread" id="chatUnread" style="display: none;">0</span></h4>
-                <span id="chatToggleIcon">▲</span>
+            <div class="chat-header" id="chatHeader">
+                <h4>💬 Draft Chat <span class="chat-unread" id="chatUnread" style="display: none;">0</span><span class="chat-drag-hint" id="chatDragHint">⠿ drag</span></h4>
+                <div class="chat-header-controls">
+                    <span class="chat-ctrl" id="chatToggleIcon" title="Collapse / expand" onclick="toggleChat(event)">▲</span>
+                    <span class="chat-ctrl" title="Hide chat" onclick="hideChat(event)">✕</span>
+                </div>
             </div>
             <div class="chat-messages" id="chatMessages">
                 <div class="chat-message system">
@@ -2011,6 +2070,7 @@ Supports:
                 <button onclick="sendChat()">Send</button>
             </div>
         </div>
+        <button class="chat-reopen" id="chatReopen" style="display: none;" onclick="showChat()">💬 Chat<span class="chat-unread" id="chatReopenUnread" style="display: none;">0</span></button>
         
         <!-- Pick Announcement Overlay -->
         <div class="pick-announcement" id="pickAnnouncement" style="display: none;">
@@ -3345,6 +3405,7 @@ Supports:
         
         // Card Preview
         async function showCardPreview(cardName) {
+            updateCardReader(cardName);
             const preview = document.getElementById('cardPreview');
             const img = document.getElementById('previewImage');
             const cardType = document.getElementById('cardType');
@@ -3399,6 +3460,7 @@ Supports:
                             rarity: data.rarity
                         };
                         img.src = imageUrl;
+                        updateCardReader(cardName);
                         
                         cardType.textContent = data.type_line || '';
                         oracleText.textContent = data.oracle_text || data.card_faces?.[0]?.oracle_text || '';
@@ -3415,6 +3477,26 @@ Supports:
         
         function hideCardPreview() {
             document.getElementById('cardPreview').classList.remove('active');
+        }
+
+        // Docked card reader in the pack/live board's right column.
+        function updateCardReader(cardName) {
+            const reader = document.getElementById('cardReader');
+            if (!reader) return;
+            const cached = cardDataCache[cardName] || {};
+            const cube = (state.cube || []).find(x => x.name === cardName);
+            const lc = (typeof liveCardMap !== 'undefined' && liveCardMap[cardName]) ? liveCardMap[cardName] : null;
+            const img = cached.image || (cube && (cube.image_normal || cube.image_small)) || (lc && (lc.image_normal || lc.image_small)) || '';
+            const type = cached.type_line || (cube && cube.type_line) || (lc && lc.type_line) || '';
+            const oracle = cached.oracle_text || (cube && cube.oracle_text) || '';
+            if (!img && !type && !oracle) return;
+            reader.classList.remove('card-reader-empty');
+            const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+            reader.innerHTML =
+                (img ? `<img src="${img}" alt="${esc(cardName)}" class="reader-img">` : '') +
+                `<div class="reader-name">${esc(cardName)}</div>` +
+                (type ? `<div class="reader-type">${esc(type)}</div>` : '') +
+                (oracle ? `<div class="reader-oracle">${esc(oracle)}</div>` : '');
         }
         
         // Turn Notifications
@@ -3627,7 +3709,8 @@ Supports:
         let chatExpanded = false;
         let lastSeenChatCount = 0;
         
-        function toggleChat() {
+        function toggleChat(e) {
+            if (e && e.stopPropagation) e.stopPropagation();
             const panel = document.getElementById('chatPanel');
             const icon = document.getElementById('chatToggleIcon');
             chatExpanded = !chatExpanded;
@@ -3636,11 +3719,92 @@ Supports:
             icon.textContent = chatExpanded ? '▼' : '▲';
             
             if (chatExpanded) {
-                lastSeenChatCount = state.chat.length;
+                lastSeenChatCount = (liveActive && liveState && liveState.chat) ? Object.keys(liveState.chat).length : (state.chat || []).length;
                 document.getElementById('chatUnread').style.display = 'none';
                 document.getElementById('chatMessages').scrollTop = 999999;
             }
         }
+
+        // ---- Floating / draggable chat window ----
+        function applyChatPos(left, top) {
+            const panel = document.getElementById('chatPanel');
+            const w = panel.offsetWidth || 320;
+            left = Math.max(0, Math.min(left, window.innerWidth - Math.min(w, window.innerWidth)));
+            top = Math.max(0, Math.min(top, window.innerHeight - 45));   // keep the header reachable
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+        }
+        function saveChatState() {
+            const panel = document.getElementById('chatPanel');
+            const pos = { hidden: panel.style.display === 'none' };
+            if (panel.style.left) { pos.left = parseFloat(panel.style.left); pos.top = parseFloat(panel.style.top); }
+            try { localStorage.setItem('rotoChatPos', JSON.stringify(pos)); } catch (e) {}
+        }
+        function clampChat() {
+            const panel = document.getElementById('chatPanel');
+            if (panel.style.left) { applyChatPos(parseFloat(panel.style.left), parseFloat(panel.style.top)); }
+        }
+        function hideChat(e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            document.getElementById('chatPanel').style.display = 'none';
+            document.getElementById('chatReopen').style.display = 'block';
+            saveChatState();
+        }
+        function showChat() {
+            document.getElementById('chatPanel').style.display = 'flex';
+            document.getElementById('chatReopen').style.display = 'none';
+            const rb = document.getElementById('chatReopenUnread');
+            if (rb) rb.style.display = 'none';
+            clampChat();
+            saveChatState();
+        }
+        function initChatDrag() {
+            const panel = document.getElementById('chatPanel');
+            const header = document.getElementById('chatHeader');
+            if (!panel || !header) return;
+
+            // Restore saved position / hidden state
+            try {
+                const saved = JSON.parse(localStorage.getItem('rotoChatPos') || 'null');
+                if (saved) {
+                    if (typeof saved.left === 'number') applyChatPos(saved.left, saved.top);
+                    if (saved.hidden) { panel.style.display = 'none'; document.getElementById('chatReopen').style.display = 'block'; }
+                }
+            } catch (e) {}
+
+            let startX, startY, origLeft, origTop, moved = false, dragging = false;
+            header.addEventListener('pointerdown', e => {
+                if (e.target.closest('.chat-ctrl')) return;   // let the collapse / hide buttons do their thing
+                dragging = true; moved = false;
+                const r = panel.getBoundingClientRect();
+                origLeft = r.left; origTop = r.top;
+                startX = e.clientX; startY = e.clientY;
+                panel.style.left = r.left + 'px'; panel.style.top = r.top + 'px';
+                panel.style.right = 'auto'; panel.style.bottom = 'auto';
+                try { header.setPointerCapture(e.pointerId); } catch (_) {}
+                e.preventDefault();
+            });
+            header.addEventListener('pointermove', e => {
+                if (!dragging) return;
+                const dx = e.clientX - startX, dy = e.clientY - startY;
+                if (!moved && Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+                if (moved) applyChatPos(origLeft + dx, origTop + dy);
+            });
+            const endDrag = e => {
+                if (!dragging) return;
+                dragging = false;
+                try { header.releasePointerCapture(e.pointerId); } catch (_) {}
+                if (!moved) toggleChat();        // a tap with no movement = collapse / expand
+                else saveChatState();
+            };
+            header.addEventListener('pointerup', endDrag);
+            header.addEventListener('pointercancel', endDrag);
+            window.addEventListener('resize', clampChat);
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initChatDrag);
+        else initChatDrag();
         
         function sendChat() {
             const input = document.getElementById('chatInput');
@@ -3688,11 +3852,13 @@ Supports:
                 `;
             }).join('');
             
-            // Show unread badge if chat is collapsed
-            if (!chatExpanded && messages.length > lastSeenChatCount) {
+            // Show unread badge if chat is collapsed or hidden
+            const panelHidden = document.getElementById('chatPanel').style.display === 'none';
+            if (messages.length > lastSeenChatCount) {
                 const unread = messages.length - lastSeenChatCount;
-                unreadBadge.textContent = unread;
-                unreadBadge.style.display = 'inline';
+                if (!chatExpanded) { unreadBadge.textContent = unread; unreadBadge.style.display = 'inline'; }
+                const reopenBadge = document.getElementById('chatReopenUnread');
+                if (panelHidden && reopenBadge) { reopenBadge.textContent = unread; reopenBadge.style.display = 'inline'; }
             }
             
             if (chatExpanded) {
@@ -4635,10 +4801,13 @@ Respond with ONLY this JSON (no markdown, no extra text):
             return html;
         }
 
+        let lastPoolCards = [];
+
         function renderPoolPanel(cards) {
+            lastPoolCards = cards;
             document.getElementById('poolCount').textContent = cards.length;
 
-            // Mana curve bar chart (non-lands), buckets 0..6 (6 = 6+)
+            // Mana curve bar chart (non-lands), buckets 0..6 (6 = 6+) — pixel heights so it scales live
             const counts = [0, 0, 0, 0, 0, 0, 0];
             cards.forEach(c => {
                 if ((c.type_line || '').toLowerCase().includes('land')) return;
@@ -4646,13 +4815,54 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 counts[cmc]++;
             });
             const maxC = Math.max(1, ...counts);
+            const H = 64;
             document.getElementById('poolCurve').innerHTML = counts.map((n, cmc) => {
-                const h = Math.round((n / maxC) * 100);
-                return `<div class="pc-bar"><div class="pc-fill" style="height:${h}%" title="${cmc}${cmc >= 6 ? '+' : ''} MV: ${n}"></div><div class="pc-label">${cmc}${cmc >= 6 ? '+' : ''}</div></div>`;
+                const px = n === 0 ? 2 : Math.max(6, Math.round((n / maxC) * H));
+                return `<div class="pc-bar"><div class="pc-count">${n || ''}</div><div class="pc-fill ${n === 0 ? 'empty' : ''}" style="height:${px}px" title="${cmc}${cmc >= 6 ? '+' : ''} MV: ${n}"></div><div class="pc-label">${cmc}${cmc >= 6 ? '+' : ''}</div></div>`;
             }).join('');
 
-            // Cards grouped by where they sit on the curve
-            document.getElementById('poolMini').innerHTML = curveGroupsHTML(cards);
+            const mode = document.getElementById('poolSort')?.value || 'cmc';
+            document.getElementById('poolMini').innerHTML = poolBodyHTML(cards, mode);
+        }
+        function onPoolSortChange() { renderPoolPanel(lastPoolCards); }
+
+        // Category functions for the columnar pool views
+        function cmcCategory(c) {
+            if ((c.type_line || '').toLowerCase().includes('land')) return { key: 'L', label: 'Lands', order: 99 };
+            const mv = Math.min(Math.round(c.cmc || 0), 7);
+            return { key: 'mv' + mv, label: `${mv}${mv >= 7 ? '+' : ''} MV`, order: mv };
+        }
+        function colorCategory(c) {
+            if ((c.type_line || '').toLowerCase().includes('land')) return { key: 'L', label: 'Lands', order: 8 };
+            const cols = c.colors || [];
+            if (cols.length === 0) return { key: 'C', label: 'Colorless', order: 7 };
+            if (cols.length > 1) return { key: 'M', label: 'Multicolor', order: 6 };
+            const m = { W: ['White', 1], U: ['Blue', 2], B: ['Black', 3], R: ['Red', 4], G: ['Green', 5] };
+            const e = m[cols[0]] || ['Other', 9];
+            return { key: cols[0], label: e[0], order: e[1] };
+        }
+        function typeCategory(c) {
+            const t = (c.type_line || '');
+            const order = ['Creature', 'Planeswalker', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Battle', 'Land'];
+            for (let i = 0; i < order.length; i++) if (t.includes(order[i])) return { key: order[i], label: order[i] + 's', order: i };
+            return { key: 'Other', label: 'Other', order: 99 };
+        }
+        function poolColumnsHTML(cards, catFn) {
+            const groups = {};
+            cards.forEach(c => { const cat = catFn(c); (groups[cat.key] = groups[cat.key] || { cat, cards: [] }).cards.push(c); });
+            const cols = Object.values(groups).sort((a, b) => a.cat.order - b.cat.order);
+            return `<div class="pool-columns">` + cols.map(g => {
+                const sorted = g.cards.slice().sort((a, b) => (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name));
+                return `<div class="pool-col"><div class="pcg-head">${g.cat.label} · ${g.cards.length}</div>${sorted.map(poolChipHTML).join('')}</div>`;
+            }).join('') + `</div>`;
+        }
+        function poolBodyHTML(cards, mode) {
+            if (!cards.length) return '<p class="text-muted">No picks yet</p>';
+            if (mode === 'name') return cards.slice().sort((a, b) => a.name.localeCompare(b.name)).map(poolChipHTML).join('');
+            if (mode === 'elo') return cards.slice().sort((a, b) => (b.elo ?? -9999) - (a.elo ?? -9999) || a.name.localeCompare(b.name)).map(poolChipHTML).join('');
+            if (mode === 'color') return poolColumnsHTML(cards, colorCategory);
+            if (mode === 'type') return poolColumnsHTML(cards, typeCategory);
+            return poolColumnsHTML(cards, cmcCategory);
         }
 
         function renderBotStatus() {
