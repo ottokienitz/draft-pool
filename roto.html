@@ -1600,6 +1600,52 @@
         .pack-complete { text-align: center; padding: 30px 20px; }
         .pack-complete h2 { margin-bottom: 8px; }
         .pack-complete .pc-sub { color: #9aa; margin-bottom: 20px; }
+        .elo-toggle {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.8rem; color: #9aa; cursor: pointer; user-select: none;
+            margin-right: 6px;
+        }
+        .elo-toggle input { width: auto; cursor: pointer; }
+
+        /* Staged selection + burn preview */
+        .booster-card.mn-selected { border-color: #4ecdc4; box-shadow: 0 0 0 2px #4ecdc4, 0 8px 22px rgba(0,0,0,0.5); }
+        .booster-card.mn-selected .mn-tick {
+            position: absolute; top: 5px; left: 5px; z-index: 3;
+            background: #4ecdc4; color: #07201d; font-weight: 800;
+            width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+        }
+        .booster-card.mn-burn { opacity: 0.45; filter: grayscale(0.4); border-color: #c0392b; }
+        .booster-card.mn-burn .mn-burnmark {
+            position: absolute; top: 5px; left: 5px; z-index: 3;
+            background: rgba(192,57,43,0.92); color: #fff; padding: 2px 6px; border-radius: 5px; font-size: 0.72rem; font-weight: 700;
+        }
+        .mn-confirm-bar {
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(78,205,196,0.35);
+            border-radius: 10px; padding: 12px 16px; margin-bottom: 14px;
+        }
+        .mn-confirm-bar .mcb-status { font-size: 0.92rem; }
+        .mn-confirm-bar .mcb-status strong { color: #4ecdc4; }
+        .mn-confirm-bar .mcb-burn { color: #e08283; }
+        .mn-confirm-bar .mcb-spacer { margin-left: auto; display: flex; gap: 8px; }
+        .mn-confirm-bar button.mcb-confirm:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* Curve-grouped pool + viewable piles */
+        .curve-group { margin-bottom: 10px; }
+        .curve-group .cg-head {
+            font-size: 0.72rem; color: #8ad8d0; text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 3px; margin-bottom: 4px;
+        }
+        .pile-details { margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; }
+        .pile-details > summary {
+            cursor: pointer; font-size: 0.82rem; color: #cdd; list-style: none; user-select: none;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .pile-details > summary::-webkit-details-marker { display: none; }
+        .pile-details > summary::before { content: '▸'; color: #778; transition: transform 0.15s; }
+        .pile-details[open] > summary::before { transform: rotate(90deg); }
+        .pile-body { max-height: 320px; overflow-y: auto; margin-top: 6px; padding-right: 4px; }
+        .pile-empty { color: #667; font-size: 0.78rem; padding: 4px 0; }
     </style>
 </head>
 <body>
@@ -1909,6 +1955,7 @@ Supports:
                         <div class="pb-meta" id="packMeta"></div>
                     </div>
                     <div class="pb-spacer">
+                        <label class="elo-toggle" title="Show each card's ELO pick rating"><input type="checkbox" id="eloToggle" onchange="toggleElo()"> Show ELO</label>
                         <button class="small secondary" onclick="exportPackPool()" id="packExportBtn">📥 Export Pool</button>
                         <button class="small secondary" onclick="exitPackDraft()">Back to Setup</button>
                     </div>
@@ -1916,6 +1963,7 @@ Supports:
 
                 <div class="pack-cols">
                     <div>
+                        <div class="mn-confirm-bar" id="mnConfirmBar" style="display:none;"></div>
                         <div class="booster-grid" id="boosterGrid"></div>
                     </div>
                     <div>
@@ -4186,6 +4234,102 @@ Respond with ONLY this JSON (no markdown, no extra text):
            touches Firebase or the rotisserie state.
            ============================================================ */
         let packDraft = null;
+        let showElo = false;
+        let mnStage = [];        // card names currently selected (staged) for the active phase
+        let mnStageKey = '';     // round:phase the stage belongs to (reset when it changes)
+
+        function toggleElo() {
+            showElo = !!document.getElementById('eloToggle')?.checked;
+            rerenderPackView();
+        }
+
+        function rerenderPackView() {
+            if (liveActive) { if (liveState) renderLiveDraft(); }
+            else if (packDraft && packDraft.active) renderPackDraft();
+        }
+
+        // ---- Shared stage-then-confirm pick UI for Minneapolis (solo + live) ----
+        function mnSyncStageKey(key) {
+            if (mnStageKey !== key) { mnStageKey = key; mnStage = []; }
+        }
+        function mnPicksNeeded() {
+            if (liveActive) { const v = deriveLive(liveState); return v.done ? 0 : v.sched[v.phase]; }
+            if (packDraft && packDraft.format === 'minneapolis') return packDraft.picks[packDraft.phase];
+            return 1;
+        }
+        function mnToggleSelect(name) {
+            const need = mnPicksNeeded();
+            const i = mnStage.indexOf(name);
+            if (i >= 0) mnStage.splice(i, 1);
+            else {
+                if (mnStage.length >= need) { showToast(`Pick exactly ${need} here — deselect one first`, 'info'); return; }
+                mnStage.push(name);
+            }
+            rerenderPackView();
+        }
+        function mnClearStage() { mnStage = []; rerenderPackView(); }
+
+        // Renders the held pack as a selectable grid + a confirm bar.
+        function renderMnPickGrid(held, picksNeeded, burnCount) {
+            const full = (mnStage.length >= picksNeeded);
+            const stagedSet = new Set(mnStage);
+            document.getElementById('boosterGrid').innerHTML = held.map(card => {
+                const safe = card.name.replace(/'/g, "\\'");
+                const img = card.image_normal || card.image_small || '';
+                const elo = (showElo && card.elo != null) ? `<div class="bc-elo">${Math.round(card.elo)}</div>` : '';
+                const selected = stagedSet.has(card.name);
+                const willBurn = !selected && full && burnCount > 0;   // once your picks are set, the rest of the pack burns
+                const cls = 'booster-card mn-card' + (selected ? ' mn-selected' : '') + (willBurn ? ' mn-burn' : '');
+                const inner = img
+                    ? `<img src="${img}" alt="${card.name}" loading="lazy">${elo}`
+                    : `${elo}<div class="bc-fallback">${card.name}</div>`;
+                const tick = selected ? '<div class="mn-tick">✓</div>' : '';
+                const burnMark = willBurn ? '<div class="mn-burnmark">🔥 burn</div>' : '';
+                return `<div class="${cls}" onclick="mnToggleSelect('${safe}')"
+                     onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
+                     ${inner}${tick}${burnMark}<div class="bc-name">${card.name}</div></div>`;
+            }).join('');
+
+            const bar = document.getElementById('mnConfirmBar');
+            bar.style.display = 'flex';
+            const burnNote = burnCount > 0
+                ? ` · <span class="mcb-burn">the other ${held.length - picksNeeded} will burn 🔥</span>`
+                : '';
+            bar.innerHTML =
+                `<span class="mcb-status">Selected <strong>${mnStage.length}/${picksNeeded}</strong>${burnNote}</span>` +
+                `<span class="mcb-spacer">` +
+                `<button class="small secondary" onclick="mnClearStage()" ${mnStage.length ? '' : 'disabled'}>Clear</button>` +
+                `<button class="small mcb-confirm" onclick="mnConfirm()" ${full ? '' : 'disabled'}>Lock in ${picksNeeded === 1 ? 'pick' : 'picks'}</button>` +
+                `</span>`;
+        }
+
+        function mnConfirm() { return liveActive ? mnConfirmLive() : mnConfirmSolo(); }
+
+        function mnConfirmLive() {
+            const v = deriveLive(liveState);
+            if (v.done) return;
+            const need = v.sched[v.phase];
+            if (mnStage.length !== need) { showToast(`Select ${need} card${need > 1 ? 's' : ''} first`, 'info'); return; }
+            const held = v.heldBySeat[liveSeat] || [];
+            const valid = mnStage.every(n => held.some(c => c.name === n));
+            if (!valid) { showToast('Selection out of date — try again', 'error'); mnClearStage(); return; }
+            const isPublic = !((liveState.meta.privatePhases || [0]).includes(v.phase));
+            const staged = mnStage.slice();
+            mnStage = [];
+            staged.forEach(name => liveRef.child('picks').push({ round: v.round, phase: v.phase, seat: liveSeat, card: name, public: isPublic, ts: Date.now() }));
+        }
+
+        function mnConfirmSolo() {
+            const pd = packDraft;
+            const phase = pd.phase;
+            const need = pd.picks[phase];
+            if (mnStage.length !== need) { showToast(`Select ${need} card${need > 1 ? 's' : ''} first`, 'info'); return; }
+            const held = mplsHeldByHuman(pd);
+            mnStage.forEach(name => { const i = held.findIndex(c => c.name === name); if (i >= 0) pd.pool.push(held.splice(i, 1)[0]); });
+            mnStage = [];
+            resolveMinneapolisPhase(pd);     // opponent picks + burns recorded + advance
+            if (!pd.done) renderPackDraft();
+        }
         let currentDraftMode = 'rotisserie';
 
         function setDraftMode(mode) {
@@ -4213,7 +4357,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 seatsRow.style.display = 'none';   // always 2 players
                 sizeRow.style.display = 'none';    // locked to 7-card packs
                 document.getElementById('packSize').value = 7;
-                if (parseInt(packCount.value) < 4) packCount.value = 8;  // canonical is 8
+                if (parseInt(packCount.value) < 4) packCount.value = 10;  // canonical default
                 document.getElementById('packCountSuffix').textContent = ' (each player opens this many)';
                 note.innerHTML = '2-player only. Each round you both open a 7-card pack: pick 1 face-down, trade and take 2 from your opponent\u2019s pack, then take 2 from your own \u2014 the last 2 are burned. 5 cards drafted per pack.';
                 if (startBtn) startBtn.textContent = 'Start Minneapolis Draft';
@@ -4257,7 +4401,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const cubeSize = (state.cube && state.cube.length) || 0;
             let needed, summary;
             if (fmt === 'minneapolis') {
-                const packs = parseInt(document.getElementById('packCount')?.value) || 8;
+                const packs = parseInt(document.getElementById('packCount')?.value) || 10;
                 const size = 7;
                 needed = packs * 2 * size;            // both players open a pack each round
                 const picksForYou = packs * 5;        // 1 + 2 + 2 per pack
@@ -4427,7 +4571,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function boosterCardHTML(card, handler) {
             const safe = card.name.replace(/'/g, "\\'");
             const img = card.image_normal || card.image_small || '';
-            const elo = (card.elo != null) ? `<div class="bc-elo">${Math.round(card.elo)}</div>` : '';
+            const elo = (showElo && card.elo != null) ? `<div class="bc-elo">${Math.round(card.elo)}</div>` : '';
             if (img) {
                 return `<div class="booster-card" onclick="${handler}('${safe}')"
                      onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
@@ -4454,6 +4598,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
             document.getElementById('boosterGrid').innerHTML =
                 pd.boosters[pd.humanSeat].map(card => boosterCardHTML(card, 'packPick')).join('');
+            document.getElementById('mnConfirmBar').style.display = 'none';
 
             renderPackPool();
             renderBotStatus();
@@ -4461,10 +4606,39 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
         function renderPackPool() { renderPoolPanel(packDraft.pool); }
 
+        // A single card "chip" used in pool / pile lists.
+        function poolChipHTML(c) {
+            const safe = c.name.replace(/'/g, "\\'");
+            const eloTag = (showElo && c.elo != null) ? ` <span style="color:#f0ad4e; font-size:0.72rem;">${Math.round(c.elo)}</span>` : '';
+            return `<div class="pm-row"><div class="color-indicator ${getColorClass(c.colors, c.type_line)}"></div>
+                <span class="pm-name" onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">${c.name}${eloTag}</span></div>`;
+        }
+
+        // Group a set of cards into curve sections (by mana value), lands last.
+        function curveGroupsHTML(cards) {
+            if (!cards.length) return '<p class="text-muted">No picks yet</p>';
+            const isLand = c => (c.type_line || '').toLowerCase().includes('land');
+            const lands = cards.filter(isLand);
+            const spells = cards.filter(c => !isLand(c));
+            const byMv = {};
+            spells.forEach(c => { const mv = Math.min(Math.round(c.cmc || 0), 7); (byMv[mv] = byMv[mv] || []).push(c); });
+            const sortChips = arr => arr.slice().sort((a, b) =>
+                getColorSortOrder(a.colors, a.type_line) - getColorSortOrder(b.colors, b.type_line) || a.name.localeCompare(b.name));
+            let html = '';
+            for (let mv = 0; mv <= 7; mv++) {
+                if (!byMv[mv] || !byMv[mv].length) continue;
+                html += `<div class="curve-group"><div class="cg-head">${mv}${mv >= 7 ? '+' : ''} MV · ${byMv[mv].length}</div>${sortChips(byMv[mv]).map(poolChipHTML).join('')}</div>`;
+            }
+            if (lands.length) {
+                html += `<div class="curve-group"><div class="cg-head">Lands · ${lands.length}</div>${sortChips(lands).map(poolChipHTML).join('')}</div>`;
+            }
+            return html;
+        }
+
         function renderPoolPanel(cards) {
             document.getElementById('poolCount').textContent = cards.length;
 
-            // Mana curve (non-lands), buckets 0..6 (6 = 6+)
+            // Mana curve bar chart (non-lands), buckets 0..6 (6 = 6+)
             const counts = [0, 0, 0, 0, 0, 0, 0];
             cards.forEach(c => {
                 if ((c.type_line || '').toLowerCase().includes('land')) return;
@@ -4477,16 +4651,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 return `<div class="pc-bar"><div class="pc-fill" style="height:${h}%" title="${cmc}${cmc >= 6 ? '+' : ''} MV: ${n}"></div><div class="pc-label">${cmc}${cmc >= 6 ? '+' : ''}</div></div>`;
             }).join('');
 
-            const sorted = cards.slice().sort((a, b) =>
-                getColorSortOrder(a.colors, a.type_line) - getColorSortOrder(b.colors, b.type_line) ||
-                (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name));
-            const mini = document.getElementById('poolMini');
-            if (sorted.length === 0) { mini.innerHTML = '<p class="text-muted">No picks yet</p>'; return; }
-            mini.innerHTML = sorted.map(c => {
-                const safe = c.name.replace(/'/g, "\\'");
-                return `<div class="pm-row"><div class="color-indicator ${getColorClass(c.colors, c.type_line)}"></div>
-                    <span class="pm-name" onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">${c.name}</span></div>`;
-            }).join('');
+            // Cards grouped by where they sit on the curve
+            document.getElementById('poolMini').innerHTML = curveGroupsHTML(cards);
         }
 
         function renderBotStatus() {
@@ -4503,8 +4669,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function renderPackComplete() {
+            const pd = packDraft;
+            document.getElementById('mnConfirmBar').style.display = 'none';
             document.getElementById('packTitle').textContent = 'Draft complete! 🎉';
-            document.getElementById('packMeta').innerHTML = `<span>You drafted ${packDraft.pool.length} cards across ${packDraft.numPacks} packs.</span>`;
+            document.getElementById('packMeta').innerHTML = `<span>You drafted ${pd.pool.length} cards across ${pd.numPacks} packs.</span>`;
             document.getElementById('packExportBtn').style.display = 'inline-block';
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🎉 That's a wrap</h2>
@@ -4512,8 +4680,18 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 <button onclick="exportPackPool()">📥 Export Pool</button>
                 <button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Draft Again</button>
             </div>`;
-            renderPackPool();
-            renderBotStatus();
+            renderPoolPanel(pd.pool);
+            if (pd.format === 'minneapolis') {
+                renderMnPiles({
+                    youCount: pd.pool.length,
+                    oppName: 'Opponent',
+                    oppFaceUp: pd.oppPicks.map(p => p.card),   // reveal everything at the end
+                    oppHidden: 0,
+                    burned: pd.burned
+                });
+            } else {
+                renderBotStatus();
+            }
         }
 
         function exportPackPool() {
@@ -4575,7 +4753,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
            You draft 5 of every 7 cards across both packs. Solo = you vs a bot.
            ============================================================ */
         function startMinneapolisDraft() {
-            const numPacks = parseInt(document.getElementById('packCount').value) || 8;
+            const numPacks = parseInt(document.getElementById('packCount').value) || 10;
             const packSize = 7;
             const picks = [1, 2, 2];
             const burns = [0, 0, 2];
@@ -4607,8 +4785,11 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 packHuman: rounds[0].human.slice(),
                 packBot: rounds[0].bot.slice(),
                 pool: [],
+                oppPicks: [],
+                burned: [],
                 done: false
             };
+            mnStage = []; mnStageKey = '';
             document.getElementById('draftSetup').style.display = 'none';
             document.getElementById('draftBoard').classList.remove('active');
             document.getElementById('packBoard').classList.add('active');
@@ -4655,12 +4836,15 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const botHeld   = (phase % 2 === 0) ? pd.packBot   : pd.packHuman;
             // Opponent makes its picks for this phase from the pack it currently holds
             const n = pd.picks[phase];
-            for (let k = 0; k < n && botHeld.length > 0; k++) pd.bots[1].pick(botHeld);
-            // Burn the discards from each player's held pack
+            for (let k = 0; k < n && botHeld.length > 0; k++) {
+                const c = pd.bots[1].pick(botHeld);
+                pd.oppPicks.push({ card: c, phase, public: phase !== 0 });
+            }
+            // Burn the discards from each player's held pack (recorded so they can be reviewed)
             const b = pd.burns[phase];
             if (b > 0) {
-                humanHeld.splice(0, Math.min(b, humanHeld.length));
-                botHeld.splice(0, Math.min(b, botHeld.length));
+                for (let k = 0; k < b && humanHeld.length > 0; k++) pd.burned.push(humanHeld.shift());
+                for (let k = 0; k < b && botHeld.length > 0; k++) pd.burned.push(botHeld.shift());
             }
             // Next phase, or open the next pair of packs
             pd.phase++;
@@ -4681,17 +4865,46 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const pd = packDraft;
             const own = (pd.phase % 2 === 0);
             const held = mplsHeldByHuman(pd);
+            const picksNeeded = pd.picks[pd.phase];
+            const burnCount = pd.burns[pd.phase];
+            mnSyncStageKey('solo:' + pd.packIdx + ':' + pd.phase);
+
             document.getElementById('packTitle').textContent = `Minneapolis Draft — Pack ${pd.packIdx + 1} of ${pd.numPacks}`;
             const heldLabel = own ? '🔓 Your pack' : "🔁 Opponent's pack";
             document.getElementById('packMeta').innerHTML =
                 `<span class="pb-dir">${mplsPhaseLabel(pd)}</span>` +
                 `<span>${heldLabel} (${held.length} left)</span>` +
-                `<span>Pick ${pd.picksLeftInPhase} more</span>` +
+                `<span>${pd.phase === 0 ? '🂠 face-down' : '👁 face-up'}</span>` +
                 `<span>You've drafted ${pd.pool.length}</span>`;
-            document.getElementById('boosterGrid').innerHTML =
-                held.map(card => boosterCardHTML(card, 'minneapolisPick')).join('');
-            renderPackPool();
-            renderBotStatus();
+
+            renderMnPickGrid(held, picksNeeded, burnCount);
+            renderPoolPanel(pd.pool);
+            renderMnPiles({
+                youCount: pd.pool.length,
+                oppName: 'Opponent',
+                oppFaceUp: pd.oppPicks.filter(p => p.public || pd.done).map(p => p.card),
+                oppHidden: pd.done ? 0 : pd.oppPicks.filter(p => !p.public).length,
+                burned: pd.burned
+            });
+        }
+
+        // Shared opponent/burned pile panel (solo + live).
+        function renderMnPiles({ youCount, oppName, oppFaceUp, oppHidden, burned }) {
+            const sym = { W: '⚪', U: '🔵', B: '⚫', R: '🔴', G: '🟢' };
+            const cc = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+            oppFaceUp.forEach(c => (c.colors || []).forEach(col => { if (cc[col] != null) cc[col]++; }));
+            const topCols = Object.entries(cc).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([c]) => sym[c]).join('') || '—';
+
+            let html = `<div class="bs-row"><span><strong>You</strong></span><span>${youCount} cards</span></div>`;
+            html += `<div class="bs-row"><span>${escapeHtml(oppName)}</span><span class="bs-colors">${topCols} · ${oppFaceUp.length} shown${oppHidden > 0 ? ` · 🂠${oppHidden}` : ''}</span></div>`;
+
+            html += `<details class="pile-details"${oppFaceUp.length ? ' open' : ''}><summary>👁 ${escapeHtml(oppName)}'s face-up pile (${oppFaceUp.length})${oppHidden > 0 ? ` · 🂠${oppHidden} hidden` : ''}</summary>`;
+            html += `<div class="pile-body">${oppFaceUp.length ? curveGroupsHTML(oppFaceUp) : '<div class="pile-empty">None revealed yet</div>'}</div></details>`;
+
+            html += `<details class="pile-details"><summary>🔥 Burned pile (${burned.length})</summary>`;
+            html += `<div class="pile-body">${burned.length ? curveGroupsHTML(burned) : '<div class="pile-empty">Nothing burned yet</div>'}</div></details>`;
+
+            document.getElementById('botStatus').innerHTML = html;
         }
 
 
@@ -4747,6 +4960,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function goLiveMinneapolis() {
             if (!roomCode) { showToast('Create or join a room first', 'error'); return; }
             liveActive = true;
+            mnStage = []; mnStageKey = '';
             packDraft = { active: true, format: 'minneapolis-live' };  // makes the rotisserie updateUI() bow out
             liveRef = db.ref('live/' + roomCode);
 
@@ -4790,7 +5004,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function hostStartLive() {
             if (liveSeat !== 0) { showToast('Only Player 1 (host) can start.', 'error'); return; }
             if (!(state.cube && state.cube.length)) { showToast('Load a cube first', 'error'); return; }
-            const numPacks = parseInt(document.getElementById('packCount').value) || 8;
+            const numPacks = parseInt(document.getElementById('packCount').value) || 10;
             const packSize = 7;
             const needed = numPacks * 2 * packSize;
             if (needed > state.cube.length) { showToast(`Need ${needed} cards but cube has ${state.cube.length}. Lower the pack count.`, 'error'); return; }
@@ -4863,7 +5077,24 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const poolBySeat = { 0: [], 1: [] };
             for (const pk of allPicks) poolBySeat[pk.seat].push(pk);
 
-            return { done, round: done ? null : cr, phase: done ? null : cp, heldBySeat, made, sched, nPhases, nRounds, poolBySeat, meta };
+            // Burned pile: leftovers in each pack of any round whose final phase is complete.
+            const burnedNames = [];
+            if (ls.packs) {
+                for (let r = 0; r < nRounds; r++) {
+                    if (!phaseComplete(r, nPhases - 1)) continue;
+                    for (const packIdx of [0, 1]) {
+                        const full = (ls.packs[r] && ls.packs[r][String(packIdx)]) || [];
+                        const removed = new Set();
+                        for (const pk of allPicks) {
+                            if (pk.round !== r) continue;
+                            if (heldPackOf(pk.seat, pk.phase) === packIdx) removed.add(pk.card);
+                        }
+                        full.forEach(nm => { if (!removed.has(nm)) burnedNames.push(nm); });
+                    }
+                }
+            }
+
+            return { done, round: done ? null : cr, phase: done ? null : cp, heldBySeat, made, sched, nPhases, nRounds, poolBySeat, burnedNames, meta };
         }
 
         function liveMnPhaseLabel(phase, sched, burns, privatePhases) {
@@ -4921,8 +5152,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
             const grid = document.getElementById('boosterGrid');
             if (owe > 0) {
-                grid.innerHTML = myHeld.map(c => boosterCardHTML(c, 'livePick')).join('');
+                mnSyncStageKey('live:' + v.round + ':' + v.phase);
+                renderMnPickGrid(myHeld, v.sched[v.phase], (liveState.meta.burns || [0, 0, 0])[v.phase]);
             } else {
+                document.getElementById('mnConfirmBar').style.display = 'none';
                 grid.innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                     <h2>⏳ Waiting for ${escapeHtml(oppName())}</h2>
                     <div class="pc-sub">They're still picking this round. Hang tight — or say hi in the chat.</div></div>`;
@@ -4945,32 +5178,19 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const reveal = v.done;
             const revealed = oppPicks.filter(pk => pk.public || reveal).map(pk => liveCard(pk.card)).filter(Boolean);
             const hidden = oppPicks.length - revealed.length;
+            const burned = (v.burnedNames || []).map(liveCard).filter(Boolean);
 
-            const cc = { W: 0, U: 0, B: 0, R: 0, G: 0 };
-            revealed.forEach(c => (c.colors || []).forEach(col => { if (cc[col] != null) cc[col]++; }));
-            const sym = { W: '⚪', U: '🔵', B: '⚫', R: '🔴', G: '🟢' };
-            const topCols = Object.entries(cc).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([c]) => sym[c]).join('') || '—';
-
-            let html = `<div class="bs-row"><span><strong>You</strong></span><span>${mine.length} cards</span></div>`;
-            html += `<div class="bs-row"><span>${escapeHtml(oppName())}</span><span class="bs-colors">${topCols} · ${revealed.length} shown${hidden > 0 ? ` · 🂠${hidden}` : ''}</span></div>`;
-
-            if (revealed.length) {
-                const sorted = revealed.slice().sort((a, b) =>
-                    getColorSortOrder(a.colors, a.type_line) - getColorSortOrder(b.colors, b.type_line) ||
-                    (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name));
-                html += `<div style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px;">`;
-                html += `<div class="text-muted" style="font-size:0.72rem; margin-bottom:4px;">${escapeHtml(oppName())}'s face-up picks${hidden > 0 ? ` (+${hidden} face-down)` : ''}</div>`;
-                html += sorted.map(c => {
-                    const safe = c.name.replace(/'/g, "\\'");
-                    return `<div class="pm-row"><div class="color-indicator ${getColorClass(c.colors, c.type_line)}"></div>
-                        <span class="pm-name" onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">${c.name}</span></div>`;
-                }).join('');
-                html += `</div>`;
-            }
-            document.getElementById('botStatus').innerHTML = html;
+            renderMnPiles({
+                youCount: mine.length,
+                oppName: oppName(),
+                oppFaceUp: revealed,
+                oppHidden: hidden,
+                burned
+            });
         }
 
         function renderLiveLobby() {
+            document.getElementById('mnConfirmBar').style.display = 'none';
             const seats = (liveState && liveState.seats) || {};
             const p0 = (seats['0'] && seats['0'].name) || '—';
             const p1 = (seats['1'] && seats['1'].name) || 'waiting…';
@@ -5007,6 +5227,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function renderLiveComplete(v) {
+            document.getElementById('mnConfirmBar').style.display = 'none';
             document.getElementById('packTitle').textContent = 'Live draft complete! 🎉';
             document.getElementById('packMeta').innerHTML = `<span>All face-down picks are now revealed.</span>`;
             document.getElementById('packExportBtn').style.display = 'inline-block';
