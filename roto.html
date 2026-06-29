@@ -86,7 +86,12 @@
             bottom: 60px;
             right: 20px;
             width: 320px;
-            max-height: 400px;
+            max-height: 85vh;
+            min-width: 240px;
+            min-height: 180px;
+            max-width: 92vw;
+            resize: both;
+            overflow: hidden;
             background: rgba(20, 20, 35, 0.95);
             border: 1px solid rgba(255,255,255,0.15);
             border-radius: 12px;
@@ -98,6 +103,8 @@
         
         .chat-panel.collapsed {
             max-height: 45px;
+            min-height: 0;
+            resize: none;
             overflow: hidden;
         }
         
@@ -129,7 +136,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 10px;
-            max-height: 250px;
+            min-height: 0;
         }
         
         .chat-message {
@@ -226,11 +233,29 @@
         .card-tooltip.active {
             opacity: 1;
         }
+        .card-tooltip:not(.active) .cr-header,
+        .card-tooltip:not(.active) .cr-grip { pointer-events: none; }
         
         .card-tooltip img {
             width: 100%;
-            border-radius: 12px;
+            display: block;
+            border-radius: 0 0 10px 10px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        .card-tooltip .cr-header {
+            pointer-events: auto; cursor: grab; user-select: none; touch-action: none;
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(20,20,35,0.97); border: 1px solid rgba(255,255,255,0.15); border-bottom: none;
+            border-radius: 8px 8px 0 0; padding: 4px 8px; font-size: 0.72rem; color: #aab;
+        }
+        .card-tooltip .cr-header:active { cursor: grabbing; }
+        .card-tooltip .cr-close { cursor: pointer; padding: 0 5px; border-radius: 4px; }
+        .card-tooltip .cr-close:hover { background: rgba(255,255,255,0.18); color: #fff; }
+        .card-tooltip .cr-grip {
+            pointer-events: auto; position: absolute; bottom: 5px; right: 5px;
+            width: 18px; height: 18px; cursor: nwse-resize; color: #ccd; font-size: 0.95rem;
+            line-height: 1; text-align: center; text-shadow: 0 1px 2px #000;
         }
         
         .card-tooltip .card-details {
@@ -2071,12 +2096,14 @@ Supports:
             </div>
         </div>
         <div class="card-tooltip" id="cardPreview">
+            <div class="cr-header" id="crHeader"><span>🔍 drag</span><span class="cr-close" title="Close (re-appears on next hover)" onclick="hideCardPreview(true)">✕</span></div>
             <img src="" alt="Card Preview" id="previewImage">
-            <div class="card-details" id="cardDetails">
+            <div class="card-details" id="cardDetails" style="display:none;">
                 <div class="card-type" id="cardType"></div>
                 <div class="oracle-text" id="oracleText"></div>
                 <div class="flavor-text" id="flavorText"></div>
             </div>
+            <div class="cr-grip" id="crGrip" title="Drag to resize">⤡</div>
         </div>
         
         <!-- Toast -->
@@ -2087,7 +2114,7 @@ Supports:
             <div class="chat-header" id="chatHeader">
                 <h4>💬 Draft Chat <span class="chat-unread" id="chatUnread" style="display: none;">0</span><span class="chat-drag-hint" id="chatDragHint">⠿ drag</span></h4>
                 <div class="chat-header-controls">
-                    <span class="chat-ctrl" id="chatToggleIcon" title="Collapse / expand" onclick="toggleChat(event)">▲</span>
+                    <span class="chat-ctrl" id="chatToggleIcon" title="Collapse / expand" onclick="toggleChat(event)">▼</span>
                     <span class="chat-ctrl" title="Hide chat" onclick="hideChat(event)">✕</span>
                 </div>
             </div>
@@ -3479,8 +3506,71 @@ Supports:
             }
         }
         
-        function hideCardPreview() {
+        function hideCardPreview(force) {
+            // Persistent reader: a card leaving doesn't close it (so you can drag/resize it).
+            // Only the ✕ button closes it; it re-appears on the next hover.
+            if (!force) return;
             document.getElementById('cardPreview').classList.remove('active');
+        }
+
+        function applyReaderPos(left, top) {
+            const p = document.getElementById('cardPreview');
+            const w = p.offsetWidth || 230;
+            left = Math.max(0, Math.min(left, window.innerWidth - Math.min(w, window.innerWidth)));
+            top = Math.max(0, Math.min(top, window.innerHeight - 40));
+            p.style.left = left + 'px'; p.style.top = top + 'px'; p.style.right = 'auto';
+        }
+        function saveReaderState() {
+            const p = document.getElementById('cardPreview');
+            const s = {};
+            if (p.style.left) { s.left = parseFloat(p.style.left); s.top = parseFloat(p.style.top); }
+            if (p.style.width) { s.width = parseFloat(p.style.width); }
+            try { localStorage.setItem('rotoReaderState', JSON.stringify(s)); } catch (e) {}
+        }
+        function initCardReader() {
+            const p = document.getElementById('cardPreview');
+            const header = document.getElementById('crHeader');
+            const grip = document.getElementById('crGrip');
+            if (!p || !header || !grip) return;
+            try {
+                const s = JSON.parse(localStorage.getItem('rotoReaderState') || 'null');
+                if (s) {
+                    if (typeof s.width === 'number') p.style.width = s.width + 'px';
+                    if (typeof s.left === 'number') applyReaderPos(s.left, s.top);
+                }
+            } catch (e) {}
+
+            let sx, sy, ol, ot, dragging = false;
+            header.addEventListener('pointerdown', e => {
+                dragging = true;
+                const r = p.getBoundingClientRect();
+                ol = r.left; ot = r.top; sx = e.clientX; sy = e.clientY;
+                p.style.left = r.left + 'px'; p.style.top = r.top + 'px'; p.style.right = 'auto';
+                try { header.setPointerCapture(e.pointerId); } catch (_) {}
+                e.preventDefault();
+            });
+            header.addEventListener('pointermove', e => { if (dragging) applyReaderPos(ol + (e.clientX - sx), ot + (e.clientY - sy)); });
+            const endD = e => { if (!dragging) return; dragging = false; try { header.releasePointerCapture(e.pointerId); } catch (_) {} saveReaderState(); };
+            header.addEventListener('pointerup', endD);
+            header.addEventListener('pointercancel', endD);
+
+            let rsx, ow, resizing = false;
+            grip.addEventListener('pointerdown', e => {
+                resizing = true; ow = p.offsetWidth; rsx = e.clientX;
+                try { grip.setPointerCapture(e.pointerId); } catch (_) {}
+                e.preventDefault(); e.stopPropagation();
+            });
+            grip.addEventListener('pointermove', e => {
+                if (!resizing) return;
+                let w = ow + (e.clientX - rsx);
+                w = Math.max(130, Math.min(w, 520));
+                p.style.width = w + 'px';
+            });
+            const endR = e => { if (!resizing) return; resizing = false; try { grip.releasePointerCapture(e.pointerId); } catch (_) {} saveReaderState(); };
+            grip.addEventListener('pointerup', endR);
+            grip.addEventListener('pointercancel', endR);
+
+            window.addEventListener('resize', () => { if (p.style.left) applyReaderPos(parseFloat(p.style.left), parseFloat(p.style.top)); });
         }
 
         // Turn Notifications
@@ -3700,7 +3790,7 @@ Supports:
             chatExpanded = !chatExpanded;
             
             panel.classList.toggle('collapsed', !chatExpanded);
-            icon.textContent = chatExpanded ? '▼' : '▲';
+            icon.textContent = chatExpanded ? '▲' : '▼';
             
             if (chatExpanded) {
                 lastSeenChatCount = (liveActive && liveState && liveState.chat) ? Object.keys(liveState.chat).length : (state.chat || []).length;
@@ -3724,6 +3814,10 @@ Supports:
             const panel = document.getElementById('chatPanel');
             const pos = { hidden: panel.style.display === 'none' };
             if (panel.style.left) { pos.left = parseFloat(panel.style.left); pos.top = parseFloat(panel.style.top); }
+            if (!panel.classList.contains('collapsed')) {
+                if (panel.style.width) pos.width = parseFloat(panel.style.width);
+                if (panel.style.height) pos.height = parseFloat(panel.style.height);
+            }
             try { localStorage.setItem('rotoChatPos', JSON.stringify(pos)); } catch (e) {}
         }
         function clampChat() {
@@ -3753,10 +3847,22 @@ Supports:
             try {
                 const saved = JSON.parse(localStorage.getItem('rotoChatPos') || 'null');
                 if (saved) {
+                    if (typeof saved.width === 'number') panel.style.width = saved.width + 'px';
+                    if (typeof saved.height === 'number') panel.style.height = saved.height + 'px';
                     if (typeof saved.left === 'number') applyChatPos(saved.left, saved.top);
                     if (saved.hidden) { panel.style.display = 'none'; document.getElementById('chatReopen').style.display = 'block'; }
                 }
             } catch (e) {}
+
+            // Persist user resizes (debounced; ignore the collapse/expand size change)
+            if (window.ResizeObserver) {
+                let rt;
+                const ro = new ResizeObserver(() => {
+                    if (panel.classList.contains('collapsed')) return;
+                    clearTimeout(rt); rt = setTimeout(saveChatState, 300);
+                });
+                ro.observe(panel);
+            }
 
             let startX, startY, origLeft, origTop, moved = false, dragging = false;
             header.addEventListener('pointerdown', e => {
@@ -3787,8 +3893,9 @@ Supports:
             header.addEventListener('pointercancel', endDrag);
             window.addEventListener('resize', clampChat);
         }
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initChatDrag);
-        else initChatDrag();
+        function initFloatingWindows() { initChatDrag(); initCardReader(); }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initFloatingWindows);
+        else initFloatingWindows();
         
         function sendChat() {
             const input = document.getElementById('chatInput');
