@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="A multiplayer cube draft tool — rotisserie, booster pod, and live 2-player Minneapolis drafts, with deck building and one-click export to MTG Arena.">
+    <meta name="description" content="A multi-player cube draft tool — rotisserie, booster pod, and live 2-player Minneapolis drafts, with deck building and one-click export to MTG Arena.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎴</text></svg>">
     <title>Cube Draft</title>
     <style>
@@ -1828,11 +1828,11 @@
                 <div class="mode-toggle" id="modeToggle">
                     <button id="modeRotoBtn" class="active" onclick="setDraftMode('rotisserie')">
                         🍢 Rotisserie
-                        <span class="mt-sub">Shared pool, multiplayer, snake draft one card at a time</span>
+                        <span class="mt-sub">Shared pool, multi-player, snake draft one card at a time</span>
                     </button>
                     <button id="modePackBtn" onclick="setDraftMode('pack')">
                         📦 Booster Draft
-                        <span class="mt-sub">Open a pack, pick, pass, burn (2-player draft)</span>
+                        <span class="mt-sub">Open a pack, pick, pass and/or burn (multi-/2-player)</span>
                     </button>
                 </div>
 
@@ -1922,7 +1922,7 @@ Supports:
 
                     <label>Format</label>
                     <select id="packFormat" onchange="onPackFormatChange()">
-                        <option value="standard" selected>Standard — open a pack, pick one, pass</option>
+                        <option value="standard" selected>Standard — open a pack, pick one, pass the rest</option>
                         <option value="minneapolis">Minneapolis — 2-player trade &amp; burn</option>
                     </select>
                     <span class="text-muted" id="packFormatNote" style="font-size:0.78rem; display:block; margin-top:4px;"></span>
