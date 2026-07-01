@@ -1768,6 +1768,28 @@
         .export-fmts { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
         .exp-fmt-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); color: #cdd; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; }
         .exp-fmt-btn.active { background: linear-gradient(135deg, #4ecdc4, #44a08d); color: #06231f; border-color: transparent; font-weight: 700; }
+
+        /* Presence dots */
+        .presence-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+        .presence-dot.online { background: #4ecd6e; box-shadow: 0 0 6px rgba(78,205,110,0.7); }
+        .presence-dot.offline { background: #666; }
+
+        /* Arena legality badge */
+        .arena-no { display: inline-block; margin-left: 6px; padding: 1px 5px; border-radius: 5px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em; color: #ffb0a6; background: rgba(255,107,107,0.14); border: 1px solid rgba(255,107,107,0.35); vertical-align: 1px; }
+
+        /* Export: basic-land helper */
+        .export-basics { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0 4px; padding: 8px 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; }
+        .export-basics label { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: #cdd; margin: 0; }
+        .export-basics input { width: 52px; background: #0c0c14; color: #dde; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; padding: 4px 6px; font-size: 0.8rem; }
+        .export-basics .eb-title { font-size: 0.78rem; color: #9ab; font-weight: 600; margin-right: 2px; }
+        .export-arena-warning { margin: 6px 0 0; padding: 8px 10px; border-radius: 10px; font-size: 0.76rem; line-height: 1.45; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: #ffc9c2; }
+
+        /* Live pod seat table */
+        .pod-seats { display: flex; flex-direction: column; gap: 4px; }
+        .pod-seat-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; padding: 4px 8px; border-radius: 8px; background: rgba(255,255,255,0.03); }
+        .pod-seat-row.me { background: rgba(78,205,196,0.12); border: 1px solid rgba(78,205,196,0.3); }
+        .pod-seat-row.waiting-on { background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.3); }
+        .pod-seat-row .ps-picks { color: #9ab; font-size: 0.76rem; }
         .export-count { margin-left: auto; font-size: 0.78rem; color: #8a93a6; }
         #exportText { width: 100%; flex: 1; min-height: 220px; background: #0c0c14; color: #dde; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 12px; font-family: ui-monospace, monospace; font-size: 0.82rem; resize: vertical; }
         .export-actions { display: flex; gap: 10px; margin-top: 12px; }
@@ -1930,7 +1952,7 @@ Supports:
                     <div id="packLiveRow" style="display:none; margin-top:12px;">
                         <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                             <input type="checkbox" id="packLive" style="width:auto;" onchange="onPackLiveToggle()">
-                            🌐 Play live online with a friend (2-player room)
+                            <span id="packLiveLabel">🌐 Play live online with a friend (2-player room)</span>
                         </label>
                         <span class="text-muted" id="packLiveNote" style="font-size:0.78rem; display:block; margin-top:4px;"></span>
                     </div>
@@ -2159,12 +2181,23 @@ Supports:
                     <button class="exp-fmt-btn" data-fmt="plain" onclick="setExportFmt('plain')">Plain text</button>
                     <span class="export-count" id="exportCount"></span>
                 </div>
+                <div class="export-basics">
+                    <span class="eb-title">Basics:</span>
+                    <label title="Plains">☀️ <input type="number" min="0" max="30" value="0" id="basicW" oninput="onBasicsInput()"></label>
+                    <label title="Island">💧 <input type="number" min="0" max="30" value="0" id="basicU" oninput="onBasicsInput()"></label>
+                    <label title="Swamp">💀 <input type="number" min="0" max="30" value="0" id="basicB" oninput="onBasicsInput()"></label>
+                    <label title="Mountain">🔥 <input type="number" min="0" max="30" value="0" id="basicR" oninput="onBasicsInput()"></label>
+                    <label title="Forest">🌲 <input type="number" min="0" max="30" value="0" id="basicG" oninput="onBasicsInput()"></label>
+                    <button class="small secondary" onclick="suggestBasics()" title="Fill to a 40-card deck, split by your deck's colors">✨ Fill to 40</button>
+                    <button class="small secondary" onclick="clearBasics()">Clear</button>
+                </div>
+                <div class="export-arena-warning" id="exportArenaWarning" style="display:none;"></div>
                 <textarea id="exportText" readonly spellcheck="false"></textarea>
                 <div class="export-actions">
                     <button class="export-copy" onclick="copyExport()">📋 Copy to clipboard</button>
                     <button class="secondary" onclick="downloadExport()">⬇ Download .txt</button>
                 </div>
-                <div class="export-hint">In Arena, open <strong>Decks → Import</strong> and paste. Cards in your sideboard export under a <em>Sideboard</em> section; you'll still want to add basic lands.</div>
+                <div class="export-hint">In Arena, open <strong>Decks → Import</strong> and paste. Cards in your sideboard export under a <em>Sideboard</em> section. Use <strong>✨ Fill to 40</strong> to add basics split by your deck's colors, then tweak the counts.</div>
             </div>
         </div>
         
@@ -2362,6 +2395,86 @@ Supports:
             connectToRoom(roomCode);
         }
         
+        /* ============================================================
+           GRANULAR SYNC — the room is split into small nodes so a pick
+           no longer re-broadcasts the whole cube to every client:
+             rotisserie/{code}/meta        small scalars + players (rarely changes)
+             rotisserie/{code}/cube        card data, written ONCE per cube load
+             rotisserie/{code}/draftOrder  written once at draft start
+             rotisserie/{code}/picks       append-only, keyed p0001..pNNNN
+             rotisserie/{code}/chat        append-only push log
+             rotisserie/{code}/presence    who's online (onDisconnect-cleaned)
+           `state` keeps its old shape locally, so all rendering code is
+           untouched. picked/pickedBy/etc. on cube cards are now DERIVED
+           from the picks log (recomputeCubeFlags), never stored.
+           ============================================================ */
+        const META_KEYS = ['phase', 'players', 'cubeName', 'cubeSource', 'cubeId',
+            'picksPerPlayer', 'doublePicksAfter', 'decksPerPlayer', 'hateDraftEnabled',
+            'timerEnabled', 'timerSeconds', 'timerStartedAt', 'hateDraftAlertsEnabled'];
+        let roomListeners = [];      // [{ref, event, fn}] so leaveRoom can detach children
+        let serverTimeOffset = 0;    // .info/serverTimeOffset — trust the server clock, not local ones
+        let presenceData = {};       // uid -> {name, spectator, ts}
+
+        function listen(ref, event, fn) {
+            ref.on(event, fn, err => { console.error('Firebase error:', err); updateSyncStatus('error'); });
+            roomListeners.push({ ref, event, fn });
+        }
+
+        function serverNow() { return Date.now() + serverTimeOffset; }
+
+        // One-time migration for rooms written by the old "one giant set()" format.
+        async function migrateLegacyRoom(ref) {
+            const snap = await ref.once('value');
+            const data = snap.val();
+            if (!data || data.meta || !('phase' in data)) return;   // empty or already new-format
+            console.log('Migrating legacy room to granular layout…');
+            const fresh = { meta: {} };
+            META_KEYS.forEach(k => { if (data[k] !== undefined) fresh.meta[k] = data[k]; });
+            if (Array.isArray(data.cube) && data.cube.length) {
+                fresh.cube = data.cube.map(stripCubeCard);
+            }
+            if (Array.isArray(data.draftOrder) && data.draftOrder.length) fresh.draftOrder = data.draftOrder;
+            if (Array.isArray(data.picks) && data.picks.length) {
+                fresh.picks = {};
+                data.picks.forEach((p, i) => { fresh.picks[pickKey(p.pickNumber || (i + 1))] = p; });
+            }
+            if (Array.isArray(data.chat) && data.chat.length) {
+                fresh.chat = {};
+                data.chat.forEach((m, i) => { fresh.chat['m' + String(i).padStart(6, '0')] = m; });
+            }
+            await ref.set(fresh);
+        }
+
+        function pickKey(n) { return 'p' + String(n).padStart(4, '0'); }
+
+        // What actually gets stored per cube card — draft status is derived, never written.
+        function stripCubeCard(c) {
+            return {
+                name: c.name, colors: c.colors || [], type_line: c.type_line || '',
+                cmc: c.cmc || 0, elo: c.elo ?? null, oracle_text: c.oracle_text || '',
+                flavor_text: c.flavor_text || '', rarity: c.rarity || '',
+                image_small: c.image_small || '', image_normal: c.image_normal || '',
+                tags: c.tags || [], arena: (c.arena === undefined ? null : c.arena)
+            };
+        }
+
+        // Re-derive picked/pickedBy/isHate/deckIndex on every cube card from the picks log.
+        function recomputeCubeFlags() {
+            const byName = new Map();
+            state.cube.forEach(c => {
+                c.picked = false; c.pickedBy = null; c.isHate = false; c.deckIndex = null;
+                byName.set(c.name.toLowerCase(), c);
+            });
+            state.picks.forEach(p => {
+                const c = byName.get((p.cardName || '').toLowerCase());
+                if (!c) return;
+                c.picked = true;
+                c.pickedBy = p.playerName;
+                c.isHate = p.type === 'hate';
+                c.deckIndex = p.type === 'hate' ? null : (p.deckIndex || 0);
+            });
+        }
+
         async function connectToRoom(code) {
             roomCode = code;
             
@@ -2376,60 +2489,135 @@ Supports:
             
             await window.authReady;   // wait for anonymous sign-in so secured rules permit access
             dbRef = db.ref('rotisserie/' + code);
-            
-            dbRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    state = {
-                        phase: data.phase || 'setup',
-                        players: data.players || [],
-                        cube: data.cube || [],
-                        cubeName: data.cubeName || '',
-                        cubeSource: data.cubeSource || '',
-                        cubeId: data.cubeId || '',
-                        picks: data.picks || [],
-                        picksPerPlayer: data.picksPerPlayer || 45,
-                        doublePicksAfter: data.doublePicksAfter || 0,
-                        decksPerPlayer: data.decksPerPlayer || 1,
-                        hateDraftEnabled: data.hateDraftEnabled || false,
-                        draftOrder: data.draftOrder || [],
-                        currentPick: data.currentPick || 0,
-                        chat: data.chat || [],
-                        timerEnabled: data.timerEnabled || false,
-                        timerSeconds: data.timerSeconds || 120,
-                        timerStartedAt: data.timerStartedAt || null,
-                        hateDraftAlertsEnabled: data.hateDraftAlertsEnabled || false
-                    };
-                    
-                    // Rebuild image cache from cube data
-                    state.cube.forEach(card => {
-                        if (card.image_normal) {
-                            cardDataCache[card.name] = { 
-                                image: card.image_normal,
-                                oracle_text: card.oracle_text,
-                                flavor_text: card.flavor_text,
-                                type_line: card.type_line,
-                                rarity: card.rarity
-                            };
-                        }
-                    });
-                }
+            state.chat = [];   // chat rebuilds from the child_added stream below
+
+            try { await migrateLegacyRoom(dbRef); } catch (e) { console.error('Migration failed:', e); }
+
+            // meta — small scalars; refires only when settings/phase/timer change
+            listen(dbRef.child('meta'), 'value', snap => {
+                const m = snap.val() || {};
+                state.phase = m.phase || 'setup';
+                state.players = m.players || [];
+                state.cubeName = m.cubeName || '';
+                state.cubeSource = m.cubeSource || '';
+                state.cubeId = m.cubeId || '';
+                state.picksPerPlayer = m.picksPerPlayer || 45;
+                state.doublePicksAfter = m.doublePicksAfter || 0;
+                state.decksPerPlayer = m.decksPerPlayer || 1;
+                state.hateDraftEnabled = m.hateDraftEnabled || false;
+                state.timerEnabled = m.timerEnabled || false;
+                state.timerSeconds = m.timerSeconds || 120;
+                state.timerStartedAt = m.timerStartedAt || null;
+                state.hateDraftAlertsEnabled = m.hateDraftAlertsEnabled || false;
                 updateUI();
                 updateTimer();
                 updateSyncStatus('connected');
-            }, (error) => {
-                console.error('Firebase error:', error);
-                updateSyncStatus('error');
             });
-            
+
+            // cube — big, but only refires on an actual cube (re)load
+            listen(dbRef.child('cube'), 'value', snap => {
+                const cube = snap.val();
+                state.cube = Array.isArray(cube) ? cube : (cube ? Object.values(cube) : []);
+                state.cube.forEach(card => {
+                    if (card.image_normal) {
+                        cardDataCache[card.name] = {
+                            image: card.image_normal,
+                            oracle_text: card.oracle_text,
+                            flavor_text: card.flavor_text,
+                            type_line: card.type_line,
+                            rarity: card.rarity
+                        };
+                    }
+                });
+                recomputeCubeFlags();
+                updateUI();
+            });
+
+            listen(dbRef.child('draftOrder'), 'value', snap => {
+                const dOrd = snap.val();
+                state.draftOrder = Array.isArray(dOrd) ? dOrd : (dOrd ? Object.values(dOrd) : []);
+                updateUI();
+            });
+
+            // picks — the append-only heart of the draft. Tiny payloads.
+            listen(dbRef.child('picks'), 'value', snap => {
+                const raw = snap.val() || {};
+                state.picks = Object.values(raw).sort((a, b) => (a.pickNumber || 0) - (b.pickNumber || 0));
+                state.currentPick = state.picks.length;   // derived — no stored counter to race on
+                recomputeCubeFlags();
+                updateUI();
+            });
+
+            // chat — its own push log; only new messages travel the wire
+            listen(dbRef.child('chat').limitToLast(200), 'child_added', snap => {
+                const msg = snap.val();
+                if (!msg) return;
+                state.chat = [...(state.chat || []), msg];
+                updateChatMessages();
+            });
+
+            setupPresence();
+
             document.getElementById('roomSetup').style.display = 'none';
             document.getElementById('mainContent').classList.add('active');
             document.getElementById('roomCodeDisplay').textContent = code;
         }
+
+        // ---- Presence: green dots, ghost-drafter detection, honest clocks ----
+        function setupPresence() {
+            const uid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || myClientId;
+            const myPres = dbRef.child('presence/' + uid);
+
+            const connFn = snap => {
+                if (snap.val() !== true) { updateSyncStatus('reconnecting'); return; }
+                // Re-arm on every (re)connect: mark us online, schedule cleanup on drop.
+                myPres.onDisconnect().remove();
+                myPres.set({
+                    name: playerName || 'Anonymous',
+                    spectator: !!isSpectator,
+                    ts: firebase.database.ServerValue.TIMESTAMP
+                });
+                updateSyncStatus('connected');
+            };
+            const connRef = db.ref('.info/connected');
+            connRef.on('value', connFn);
+            roomListeners.push({ ref: connRef, event: 'value', fn: connFn });
+
+            const offRef = db.ref('.info/serverTimeOffset');
+            const offFn = snap => { serverTimeOffset = snap.val() || 0; };
+            offRef.on('value', offFn);
+            roomListeners.push({ ref: offRef, event: 'value', fn: offFn });
+
+            listen(dbRef.child('presence'), 'value', snap => {
+                presenceData = snap.val() || {};
+                if (state.phase !== 'setup') { updateTurnBanner(); updatePlayersView(); }
+            });
+        }
+
+        function onlineNames() {
+            const s = new Set();
+            Object.values(presenceData || {}).forEach(p => {
+                if (p && p.name && !p.spectator) s.add(p.name.toLowerCase());
+            });
+            return s;
+        }
+
+        function presenceDot(name) {
+            if (!Object.keys(presenceData || {}).length) return '';   // presence unused (e.g. same-couch draft)
+            const online = onlineNames().has((name || '').toLowerCase());
+            return `<span class="presence-dot ${online ? 'online' : 'offline'}" title="${online ? 'Online' : 'Offline'}"></span>`;
+        }
         
         function leaveRoom() {
             if (!confirm('Leave this draft?')) return;
-            if (dbRef) dbRef.off();
+            // Detach every per-room listener (dbRef.off() alone wouldn't reach child paths)
+            roomListeners.forEach(l => { try { l.ref.off(l.event, l.fn); } catch (e) {} });
+            roomListeners = [];
+            try {
+                const uid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || myClientId;
+                dbRef.child('presence/' + uid).remove();
+            } catch (e) {}
+            presenceData = {};
             roomCode = null;
             dbRef = null;
             
@@ -2452,9 +2640,31 @@ Supports:
             });
         }
         
-        function saveToFirebase() {
+        // ---- Granular writers (replace the old whole-state saveToFirebase) ----
+        function saveMeta(patch) {
+            Object.assign(state, patch);   // optimistic local apply
+            if (dbRef) dbRef.child('meta').update(patch);
+        }
+        function writeCube() {
+            if (dbRef) dbRef.child('cube').set(state.cube.map(stripCubeCard));
+        }
+        function writeDraftOrder() {
+            if (dbRef) dbRef.child('draftOrder').set(state.draftOrder);
+        }
+        function pushChatMessage(msg) {
+            if (dbRef) { dbRef.child('chat').push(msg); }
+            else { state.chat = [...(state.chat || []), msg]; updateChatMessages(); }
+        }
+        // First-writer-wins pick slot: a stale or double-clicking client simply aborts.
+        function writePick(record, onTaken) {
             if (!dbRef) return;
-            dbRef.set(state);
+            dbRef.child('picks/' + pickKey(record.pickNumber)).transaction(
+                existing => existing === null ? record : undefined,
+                (err, committed) => {
+                    if (err) { console.error('Pick write failed:', err); showToast('Pick failed to sync — try again', 'error'); }
+                    else if (!committed && onTaken) onTaken();
+                }
+            );
         }
         
         function updateSyncStatus(status) {
@@ -2464,6 +2674,8 @@ Supports:
             if (status === 'connected') {
                 dot.classList.add('connected');
                 label.textContent = 'Live';
+            } else if (status === 'reconnecting') {
+                label.textContent = 'Reconnecting…';
             } else {
                 label.textContent = 'Disconnected';
             }
@@ -2473,6 +2685,13 @@ Supports:
         function savePlayerName() {
             playerName = document.getElementById('playerName').value.trim();
             localStorage.setItem('roto-player-name', playerName);
+            // Keep the presence record in step with the new name
+            if (dbRef) {
+                try {
+                    const uid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || myClientId;
+                    dbRef.child('presence/' + uid + '/name').set(playerName || 'Anonymous');
+                } catch (e) {}
+            }
         }
         
         function updatePlayerInputs() {
@@ -2558,7 +2777,7 @@ Supports:
             }
             
             updateDraftSizeInfo();
-            saveToFirebase();
+            saveMeta({ players: state.players });
         }
         
         function updatePlayerName(index, name) {
@@ -2570,7 +2789,7 @@ Supports:
             // Debounce Firebase saves to avoid spam while typing
             clearTimeout(playerNameDebounce);
             playerNameDebounce = setTimeout(() => {
-                saveToFirebase();
+                saveMeta({ players: state.players });
             }, 300);
         }
         
@@ -2610,7 +2829,7 @@ Supports:
                 }
             }
             
-            saveToFirebase();
+            saveMeta({ players: state.players });
             showToast('Player order randomized!', 'success');
         }
         
@@ -2727,7 +2946,9 @@ Supports:
                 state.cubeSource = 'cubecobra';
                 state.cubeId = cubeId;
                 
-                saveToFirebase();
+                writeCube();
+                saveMeta({ cubeName: state.cubeName, cubeSource: state.cubeSource, cubeId: state.cubeId });
+                checkArenaLegality();   // cubeJSON has no Arena data — backfill from Scryfall
                 
                 document.getElementById('cubeStatus').textContent = `✓ ${state.cube.length} cards loaded from "${state.cubeName}"${eloStatus}`;
                 document.getElementById('startDraftBtn').disabled = false;
@@ -2782,6 +3003,7 @@ Supports:
                     image_small: card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small || '',
                     image_normal: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal || '',
                     tags: [],
+                    arena: Array.isArray(card.games) ? card.games.includes('arena') : null,
                     picked: false,
                     pickedBy: null
                 }));
@@ -2802,6 +3024,7 @@ Supports:
                             image_small: '',
                             image_normal: '',
                             tags: [],
+                            arena: null,
                             picked: false,
                             pickedBy: null
                         });
@@ -2819,7 +3042,8 @@ Supports:
                 state.cubeSource = 'cubecobra';
                 state.cubeId = cubeId;
                 
-                saveToFirebase();
+                writeCube();
+                saveMeta({ cubeName: state.cubeName, cubeSource: state.cubeSource, cubeId: state.cubeId });
                 
                 document.getElementById('cubeStatus').textContent = `✓ ${state.cube.length} cards loaded from "${state.cubeName}"`;
                 document.getElementById('startDraftBtn').disabled = false;
@@ -2828,6 +3052,48 @@ Supports:
             } catch (error) {
                 console.error('Scryfall error:', error);
                 showToast(`Failed to load card data: ${error.message}`, 'error');
+            }
+        }
+        
+        // Backfill Arena legality for cubes that arrived without it (the CubeCobra
+        // cubeJSON path has no `games` data). Runs in the background after load;
+        // rewrites the cube node once when done so everyone in the room gets it.
+        async function checkArenaLegality() {
+            const missing = state.cube.filter(c => c.arena === null || c.arena === undefined);
+            if (missing.length === 0) return;
+            try {
+                const batchSize = 75;
+                const legality = new Map();   // lowercased name -> bool
+                for (let i = 0; i < missing.length; i += batchSize) {
+                    const batch = missing.slice(i, i + batchSize);
+                    const response = await fetch('https://api.scryfall.com/cards/collection', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ identifiers: batch.map(c => ({ name: c.name })) })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        (data.data || []).forEach(card => {
+                            legality.set(card.name.toLowerCase(), Array.isArray(card.games) && card.games.includes('arena'));
+                        });
+                    }
+                    if (i + batchSize < missing.length) await new Promise(r => setTimeout(r, 100));
+                }
+                let notOnArena = 0;
+                state.cube.forEach(c => {
+                    if (c.arena === null || c.arena === undefined) {
+                        const v = legality.get(c.name.toLowerCase());
+                        if (v !== undefined) c.arena = v;
+                    }
+                    if (c.arena === false) notOnArena++;
+                });
+                writeCube();   // one extra cube write at load time, so the room shares the flags
+                if (notOnArena > 0) {
+                    showToast(`⚠️ ${notOnArena} card${notOnArena === 1 ? ' is' : 's are'} not on MTG Arena (flagged in the list)`, 'info');
+                }
+                updateCubeList();
+            } catch (e) {
+                console.error('Arena legality check failed:', e);
             }
         }
         
@@ -2905,15 +3171,18 @@ Supports:
             state.picks = [];
             state.currentPick = 0;
             
-            // Reset cube
-            state.cube.forEach(card => {
-                card.picked = false;
-                card.pickedBy = null;
-                card.isHate = false;
-                card.deckIndex = null;
+            recomputeCubeFlags();   // no picks yet → clears any stale derived flags
+
+            if (dbRef) dbRef.child('picks').remove();   // fresh pick log
+            writeDraftOrder();
+            saveMeta({
+                phase: 'drafting',
+                players: state.players,
+                picksPerPlayer: state.picksPerPlayer,
+                doublePicksAfter: state.doublePicksAfter,
+                decksPerPlayer: state.decksPerPlayer,
+                hateDraftEnabled: state.hateDraftEnabled
             });
-            
-            saveToFirebase();
             showToast('Draft started!', 'success');
             
             // Scroll to top of page
@@ -3051,24 +3320,29 @@ Supports:
             const slot = getCurrentSlot() || { type: 'deck', deck: 0 };
             const isHate = slot.type === 'hate';
 
-            state.cube[cardIndex].picked = true;
-            state.cube[cardIndex].pickedBy = state.players[currentDrafter];
-            state.cube[cardIndex].isHate = isHate;
-            state.cube[cardIndex].deckIndex = isHate ? null : (slot.deck || 0);
-            
-            state.picks.push({
+            const record = {
                 pickNumber: state.currentPick + 1,
                 playerIndex: currentDrafter,
                 playerName: state.players[currentDrafter],
                 cardName: cardName,
                 type: slot.type,                              // 'deck' | 'hate'
                 deckIndex: isHate ? null : (slot.deck || 0),  // 0-based deck this pick goes to
-                timestamp: Date.now()
+                timestamp: serverNow()
+            };
+
+            // Optimistic local apply for a snappy UI; the picks listener will
+            // rebuild from the server log and converge either way.
+            state.picks.push(record);
+            state.currentPick = state.picks.length;
+            recomputeCubeFlags();
+            updateUI();
+
+            // First-writer-wins on this pick slot. A stale client (or a second
+            // tab racing) aborts instead of clobbering someone's pick.
+            writePick(record, () => {
+                showToast('That pick was already made — re-syncing…', 'info');
             });
-            
-            state.currentPick++;
-            
-            saveToFirebase();
+
             clearSearch();
             showToast(isHate ? `🗡️ Hate-drafted: ${cardName}` : `Picked: ${cardName}`, 'success');
         }
@@ -3165,11 +3439,15 @@ Supports:
             const isHate = slot.type === 'hate';
             
             banner.className = (isMyTurn ? 'turn-banner' : 'turn-banner not-your-turn') + (isHate ? ' hate-turn' : '');
+            // Presence hint: is the person we're all waiting on actually here?
+            const presenceKnown = Object.keys(presenceData || {}).length > 0;
+            const drafterOffline = presenceKnown && !isMyTurn && !onlineNames().has(drafterName.toLowerCase());
+            const offlineTag = drafterOffline ? ' 💤 (offline)' : '';
             if (isHate) {
-                turnText.textContent = isMyTurn ? "🗡️ Your Hate Pick! (deny a card)" : `🗡️ ${drafterName}'s Hate Pick`;
+                turnText.textContent = isMyTurn ? "🗡️ Your Hate Pick! (deny a card)" : `🗡️ ${drafterName}'s Hate Pick${offlineTag}`;
             } else {
                 const deckTag = (state.decksPerPlayer > 1) ? ` — Deck ${slot.deck + 1}` : '';
-                turnText.textContent = (isMyTurn ? "🎯 Your Pick!" : `⏳ ${drafterName}'s Turn`) + deckTag;
+                turnText.textContent = (isMyTurn ? "🎯 Your Pick!" : `⏳ ${drafterName}'s Turn${offlineTag}`) + deckTag;
             }
             const kind = isHate ? ' • hate' : (state.decksPerPlayer > 1 ? ` • deck ${slot.deck + 1}` : '');
             pickInfo.textContent = `Pick ${state.currentPick + 1} of ${totalPicks}${kind}`;
@@ -3244,6 +3522,7 @@ Supports:
                 } else if (card.cmc !== undefined) {
                     statDisplay = `<span style="color: #888; font-size: 0.75rem; margin-left: 8px;">${card.cmc}</span>`;
                 }
+                const arenaBadge = card.arena === false ? `<span class="arena-no" title="Not available on MTG Arena">no Arena</span>` : '';
                 return `
                 <div class="card-item ${card.picked ? 'picked' : ''}" 
                      style="position: relative; padding-left: 16px;"
@@ -3251,7 +3530,7 @@ Supports:
                      onmouseenter="showCardPreview('${card.name.replace(/'/g, "\\'")}')"
                      onmouseleave="hideCardPreview()">
                     <div class="color-indicator ${colorClass}"></div>
-                    <span class="card-name">${card.name}${statDisplay}</span>
+                    <span class="card-name">${card.name}${statDisplay}${arenaBadge}</span>
                     ${card.picked ? `<span class="picked-by${card.isHate ? ' exiled' : ''}">${card.isHate ? '🗡️ exiled' : card.pickedBy}</span>` : ''}
                 </div>
             `}).join('');
@@ -3382,7 +3661,7 @@ Supports:
                 return `
                     <div class="player-pool ${isCurrent ? 'current-turn' : ''}">
                         <div class="player-pool-header">
-                            <h4>${player} ${isCurrent ? '⏳' : ''}</h4>
+                            <h4>${presenceDot(player)}${player} ${isCurrent ? '⏳' : ''}</h4>
                             <span class="pick-count">${deckPicks.length} picks</span>
                         </div>
                         ${deckCards.length > 0 ? `
@@ -3798,20 +4077,16 @@ Supports:
         function resetDraft() {
             if (!confirm('Reset the draft? This will clear all picks and return to setup.')) return;
             
-            state.phase = 'setup';
             state.picks = [];
             state.currentPick = 0;
             state.draftOrder = [];
-            
-            // Reset cube picked status
-            state.cube.forEach(card => {
-                card.picked = false;
-                card.pickedBy = null;
-                card.isHate = false;
-                card.deckIndex = null;
-            });
-            
-            saveToFirebase();
+            recomputeCubeFlags();
+
+            if (dbRef) {
+                dbRef.child('picks').remove();
+                dbRef.child('draftOrder').remove();
+            }
+            saveMeta({ phase: 'setup' });
             showToast('Draft reset!', 'success');
         }
         
@@ -4002,8 +4277,7 @@ Supports:
                 timestamp: Date.now()
             };
             
-            state.chat = [...(state.chat || []), chatMessage];
-            saveToFirebase();
+            pushChatMessage(chatMessage);
             input.value = '';
         }
         
@@ -4055,21 +4329,15 @@ Supports:
         // ============================================================
         
         function toggleTimer() {
-            state.timerEnabled = document.getElementById('timerToggle').checked;
-            
-            if (state.timerEnabled) {
-                state.timerStartedAt = Date.now();
-            } else {
-                state.timerStartedAt = null;
-            }
-            
-            saveToFirebase();
+            const on = document.getElementById('timerToggle').checked;
+            saveMeta({ timerEnabled: on, timerStartedAt: on ? serverNow() : null });
         }
         
         function updateTimerDuration() {
-            state.timerSeconds = parseInt(document.getElementById('timerSelect').value);
-            state.timerStartedAt = Date.now(); // Reset timer
-            saveToFirebase();
+            saveMeta({
+                timerSeconds: parseInt(document.getElementById('timerSelect').value),
+                timerStartedAt: serverNow()   // reset, on the server's clock
+            });
         }
         
         function updateTimer() {
@@ -4090,7 +4358,7 @@ Supports:
             if (timerInterval) clearInterval(timerInterval);
             
             timerInterval = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - state.timerStartedAt) / 1000);
+                const elapsed = Math.floor((serverNow() - state.timerStartedAt) / 1000);
                 const remaining = Math.max(0, state.timerSeconds - elapsed);
                 
                 const minutes = Math.floor(remaining / 60);
@@ -4315,8 +4583,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         // ============================================================
         
         function toggleHateDraftAlerts() {
-            state.hateDraftAlertsEnabled = document.getElementById('hateDraftToggle').checked;
-            saveToFirebase();
+            saveMeta({ hateDraftAlertsEnabled: document.getElementById('hateDraftToggle').checked });
             updateCubeList();
         }
         
@@ -4553,21 +4820,22 @@ Respond with ONLY this JSON (no markdown, no extra text):
         // Patch makePick to reset timer
         const originalMakePick = makePick;
         makePick = function(cardName) {
+            const before = state.picks.length;
             originalMakePick(cardName);
-            
+            if (state.picks.length === before) return;   // pick was rejected — nothing happened
+
             // Reset timer for next pick
             if (state.timerEnabled) {
-                state.timerStartedAt = Date.now();
-                saveToFirebase();
+                saveMeta({ timerStartedAt: serverNow() });
             }
             
             // Add system message to chat
-            const picker = state.players[getCurrentDrafter() - 1] || playerName;
-            state.chat = [...(state.chat || []), {
+            const made = state.picks[state.picks.length - 1];
+            pushChatMessage({
                 playerName: 'System',
-                message: `${picker} picked ${cardName}`,
-                timestamp: Date.now()
-            }];
+                message: `${made.playerName} picked ${cardName}`,
+                timestamp: serverNow()
+            });
         };
 
         /* ============================================================
@@ -4681,31 +4949,93 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
         /* ============ Export to Arena / Moxfield with one-click copy ============ */
         let exportCards = [], exportFmt = 'arena';
+        const BASIC_NAMES = { W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest' };
+        let exportBasics = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+
+        function basicsLines() {
+            return ['W', 'U', 'B', 'R', 'G']
+                .filter(c => exportBasics[c] > 0)
+                .map(c => `${exportBasics[c]} ${BASIC_NAMES[c]}`);
+        }
         function buildDeckList(cards, fmt) {
             const main = cards.filter(c => !sideboardNames.has(c.name));
             const side = cards.filter(c => sideboardNames.has(c.name));
             const tally = arr => { const m = new Map(); arr.forEach(c => m.set(c.name, (m.get(c.name) || 0) + 1)); return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])); };
             const ln = ([n, k]) => `${k} ${n}`;
-            const ml = tally(main), sl = tally(side);
+            const ml = tally(main).map(ln).concat(basicsLines());
+            const sl = tally(side);
             if (fmt === 'moxfield') {
-                let o = ml.map(ln).join('\n');
+                let o = ml.join('\n');
                 if (sl.length) o += '\n\n' + sl.map(e => 'SB: ' + ln(e)).join('\n');
                 return o;
             }
             if (fmt === 'plain') {
-                let o = ml.map(ln).join('\n');
+                let o = ml.join('\n');
                 if (sl.length) o += '\n\nSideboard\n' + sl.map(ln).join('\n');
                 return o;
             }
-            let o = 'Deck\n' + ml.map(ln).join('\n');   // arena
+            let o = 'Deck\n' + ml.join('\n');   // arena
             if (sl.length) o += '\n\nSideboard\n' + sl.map(ln).join('\n');
             return o;
+        }
+        function totalBasics() { return Object.values(exportBasics).reduce((a, b) => a + b, 0); }
+        function onBasicsInput() {
+            ['W', 'U', 'B', 'R', 'G'].forEach(c => {
+                exportBasics[c] = Math.max(0, parseInt(document.getElementById('basic' + c)?.value) || 0);
+            });
+            renderExport();
+        }
+        function clearBasics() {
+            exportBasics = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+            ['W', 'U', 'B', 'R', 'G'].forEach(c => { const el = document.getElementById('basic' + c); if (el) el.value = 0; });
+            renderExport();
+        }
+        // Fill the maindeck to 40 with basics, split by the deck's color balance.
+        function suggestBasics() {
+            const main = exportCards.filter(c => !sideboardNames.has(c.name));
+            const need = Math.max(0, 40 - main.length);
+            if (need === 0) { showToast('Maindeck is already 40+ cards — no basics needed.', 'info'); return; }
+            const counts = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+            main.forEach(c => (c.colors || []).forEach(col => { if (counts[col] !== undefined) counts[col]++; }));
+            let total = Object.values(counts).reduce((a, b) => a + b, 0);
+            const out = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+            if (total === 0) {
+                out.W = need;   // truly colorless deck — pick a lane, any lane
+            } else {
+                // Largest-remainder apportionment so the split always sums to `need`
+                const shares = ['W', 'U', 'B', 'R', 'G'].map(c => ({ c, exact: need * counts[c] / total }));
+                let used = 0;
+                shares.forEach(s => { s.base = Math.floor(s.exact); s.rem = s.exact - s.base; used += s.base; });
+                shares.sort((a, b) => b.rem - a.rem);
+                for (let i = 0; used < need; i = (i + 1) % shares.length) { shares[i].base++; used++; }
+                shares.forEach(s => { out[s.c] = s.base; });
+            }
+            exportBasics = out;
+            ['W', 'U', 'B', 'R', 'G'].forEach(c => { const el = document.getElementById('basic' + c); if (el) el.value = out[c]; });
+            renderExport();
+            showToast(`Added ${need} basics — deck is now 40. Tweak the split if you like.`, 'success');
         }
         function renderExport() {
             document.getElementById('exportText').value = buildDeckList(exportCards, exportFmt);
             const main = exportCards.filter(c => !sideboardNames.has(c.name)).length;
             const side = exportCards.length - main;
-            document.getElementById('exportCount').textContent = `${main} maindeck${side ? ` · ${side} sideboard` : ''}`;
+            const basics = totalBasics();
+            document.getElementById('exportCount').textContent =
+                `${main + basics} maindeck${basics ? ` (${basics} basics)` : ''}${side ? ` · ${side} sideboard` : ''}`;
+
+            // Arena legality: only nag on the Arena tab, only when we know
+            const warn = document.getElementById('exportArenaWarning');
+            if (warn) {
+                const offArena = exportFmt === 'arena'
+                    ? exportCards.filter(c => c.arena === false).map(c => c.name)
+                    : [];
+                if (offArena.length > 0) {
+                    warn.style.display = 'block';
+                    warn.innerHTML = `⚠️ <strong>${offArena.length} card${offArena.length === 1 ? '' : 's'} in this pool ${offArena.length === 1 ? 'is' : 'are'} not on MTG Arena</strong> — Arena will skip ${offArena.length === 1 ? 'it' : 'them'} on import: ${offArena.map(escapeHtml).join(', ')}`;
+                } else {
+                    warn.style.display = 'none';
+                }
+            }
         }
         function setExportFmt(f) {
             exportFmt = f;
@@ -4715,6 +5045,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function openExportModal(cards) {
             exportCards = cards || [];
             if (!exportCards.length) { showToast('Nothing to export yet — draft some cards first.', 'info'); return; }
+            clearBasics();
             setExportFmt('arena');
             document.getElementById('exportModal').style.display = 'flex';
         }
@@ -4743,7 +5074,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function rerenderPackView() {
-            if (liveActive) { if (liveState) renderLiveDraft(); }
+            if (podActive) { if (podState) renderPodDraft(); }
+            else if (liveActive) { if (liveState) renderLiveDraft(); }
             else if (packDraft && packDraft.active) renderPackDraft();
         }
 
@@ -4752,6 +5084,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             if (mnStageKey !== key) { mnStageKey = key; mnStage = []; }
         }
         function mnPicksNeeded() {
+            if (podActive) return 1;
             if (liveActive) { const v = deriveLive(liveState); return v.done ? 0 : v.sched[v.phase]; }
             if (packDraft && packDraft.format === 'minneapolis') return packDraft.picks[packDraft.phase];
             return 1;
@@ -4809,6 +5142,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function mnConfirm() {
+            if (podActive) return podConfirm();
             if (liveActive) return mnConfirmLive();
             if (packDraft && packDraft.format === 'minneapolis') return mnConfirmSolo();
             return packConfirm();   // standard booster: single staged pick
@@ -4889,8 +5223,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 if (startBtn) startBtn.textContent = 'Start Booster Draft';
             }
             const liveRow = document.getElementById('packLiveRow');
-            if (liveRow) liveRow.style.display = (fmt === 'minneapolis') ? 'block' : 'none';
-            if (fmt !== 'minneapolis') { const lv = document.getElementById('packLive'); if (lv) lv.checked = false; }
+            if (liveRow) liveRow.style.display = 'block';   // live works for standard pods AND Minneapolis
             onPackLiveToggle();
             updatePackSizeInfo();
             syncDraftPool();
@@ -4898,15 +5231,22 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
         function onPackLiveToggle() {
             const fmt = document.getElementById('packFormat')?.value || 'standard';
-            const live = !!document.getElementById('packLive')?.checked && fmt === 'minneapolis';
+            const live = !!document.getElementById('packLive')?.checked;
             const note = document.getElementById('packLiveNote');
             const startBtn = document.getElementById('startPackBtn');
-            if (live) {
+            const liveLabel = document.getElementById('packLiveLabel');
+            if (liveLabel) liveLabel.textContent = fmt === 'minneapolis'
+                ? '🌐 Play live online with a friend (2-player room)'
+                : '🌐 Play live online — friends fill seats, bots take the rest';
+            if (live && fmt === 'minneapolis') {
                 if (note) note.innerHTML = `You're in room <strong>${roomCode || '—'}</strong>. Share that code with your friend — they join the same room, pick Minneapolis → Play live, and you draft together in real time. First pick is face-down (private); the wheel and last two picks are face-up.`;
                 if (startBtn) startBtn.textContent = 'Go Live (host the draft)';
+            } else if (live) {
+                if (note) note.innerHTML = `You're in room <strong>${roomCode || '—'}</strong>. Share that code — friends join the room, pick Booster → Play live, and land in the pod lobby. Whoever arrived first hosts; empty seats are filled with bots when the host starts. Everyone drafts at once, packs pass around the virtual table.`;
+                if (startBtn) startBtn.textContent = 'Go Live (join the pod lobby)';
             } else if (note) {
                 note.textContent = '';
-                if (startBtn && fmt === 'minneapolis') startBtn.textContent = 'Start Minneapolis Draft';
+                if (startBtn) startBtn.textContent = fmt === 'minneapolis' ? 'Start Minneapolis Draft' : 'Start Booster Draft';
             }
         }
 
@@ -4994,6 +5334,9 @@ Respond with ONLY this JSON (no markdown, no extra text):
             if (fmt === 'minneapolis') {
                 const live = !!document.getElementById('packLive')?.checked;
                 return live ? goLiveMinneapolis() : startMinneapolisDraft();
+            }
+            if (document.getElementById('packLive')?.checked) {
+                return goLivePod();   // standard booster, but with humans in the seats
             }
             const seats = parseInt(document.getElementById('packSeats').value) || 8;
             const numPacks = parseInt(document.getElementById('packCount').value) || 3;
@@ -5335,7 +5678,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
         function exportPackPool() {
             let cards;
-            if (liveActive && liveState) {
+            if (podActive && podState) {
+                const v = derivePod(podState);
+                cards = (podSeat !== null && v.pools) ? (v.pools[podSeat] || []).map(podCard) : [];
+            } else if (liveActive && liveState) {
                 const v = deriveLive(liveState);
                 cards = (v.poolBySeat[liveSeat] || []).map(pk => liveCard(pk.card)).filter(Boolean);
             } else if (packDraft && packDraft.pool) {
@@ -5347,6 +5693,21 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function exitPackDraft() {
+            if (podActive) {
+                const inProgress = podState && podState.setup && podState.setup.started && !derivePod(podState).done;
+                if (inProgress && !confirm('Leave the live pod? You can rejoin from the same room while it\u2019s still going — a bot will NOT take over your seat.')) return;
+                if (podRef) {
+                    try { podRef.child('lobby/' + myClientId).onDisconnect().cancel(); } catch (e) {}
+                    podRef.child('lobby/' + myClientId).remove();
+                    podRef.off();
+                }
+                podActive = false; podRef = null; podState = null; podSeat = null; podCardMap = {}; podLastPickable = false;
+                packDraft = null;
+                document.getElementById('packBoard').classList.remove('active');
+                document.getElementById('draftSetup').style.display = 'block';
+                updateUI();
+                return;
+            }
             if (liveActive) {
                 const inProgress = liveState && liveState.meta && liveState.meta.started && !deriveLive(liveState).done;
                 if (inProgress && !confirm('Leave the live draft? You can rejoin from the same room while it\u2019s still going.')) return;
@@ -5956,6 +6317,434 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const arr = raw ? Object.values(raw).sort((a, b) => a.timestamp - b.timestamp) : [];
             renderChatMessagesInto(arr);
         }
+
+        /* ============================================================
+           LIVE BOOSTER POD — standard 8-seat draft with friends online.
+           Same event-sourced pattern as live Minneapolis: the host writes
+           the shuffled card order once, human picks land in an append-only
+           log keyed `round_pick_seat`, and every client replays the log —
+           including all bot picks, which are DETERMINISTIC (rating +
+           color affinity, ties broken alphabetically) so everyone derives
+           the identical table without a server in charge.
+             pod/{code}/lobby/{clientId}   {name, ts} — who's waiting
+             pod/{code}/setup              seats, packs, seat assignments
+             pod/{code}/order              shuffled card names, written once
+             pod/{code}/cards              card data for everything in play
+             pod/{code}/picks/{r_p_s}      {card, ts} — human picks only
+           ============================================================ */
+        let podActive = false;
+        let podRef = null;
+        let podState = null;
+        let podSeat = null;          // my seat index once the draft starts, else null
+        let podLastPickable = false;
+        let podHostBusy = false;
+        let podCardMap = {};
+
+        function goLivePod() {
+            if (!roomCode) { showToast('Create or join a room first', 'error'); return; }
+            podActive = true;
+            mnStage = []; mnStageKey = ''; sideboardNames = new Set();
+            podSeat = null; podLastPickable = false;
+            packDraft = { active: true, format: 'pod-live' };   // makes the rotisserie updateUI() bow out
+            podRef = db.ref('pod/' + roomCode);
+
+            document.getElementById('draftSetup').style.display = 'none';
+            document.getElementById('draftBoard').classList.remove('active');
+            document.getElementById('packBoard').classList.add('active');
+            document.getElementById('packExportBtn').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Announce ourselves in the lobby (idempotent — keyed by clientId).
+            // onDisconnect keeps a dead tab from squatting on the host chair.
+            podRef.child('lobby/' + myClientId).onDisconnect().remove();
+            podRef.child('lobby/' + myClientId).update({
+                name: playerName || 'Anonymous',
+                ts: firebase.database.ServerValue.TIMESTAMP
+            });
+
+            podRef.on('value', snap => {
+                podState = snap.val() || {};
+                podHostBusy = false;
+                if (podState.setup && podState.setup.eloThresholds) gradeThresholds = podState.setup.eloThresholds;
+                buildPodCardMap();
+                if (podState.setup && podState.setup.started) {
+                    const sc = podState.setup.seatClients || [];
+                    podSeat = sc.indexOf(myClientId);
+                    if (podSeat < 0) podSeat = null;
+                }
+                renderPodDraft();
+            });
+        }
+
+        function buildPodCardMap() {
+            podCardMap = {};
+            const cs = podState && podState.cards;
+            const arr = Array.isArray(cs) ? cs : (cs ? Object.values(cs) : []);
+            arr.forEach(c => {
+                if (c && c.name) {
+                    podCardMap[c.name] = c;
+                    if (!cardDataCache[c.name]) cardDataCache[c.name] = { image: c.image_normal || c.image_small || '', type_line: c.type_line || '' };
+                }
+            });
+        }
+        function podCard(name) {
+            return podCardMap[name] || { name, colors: [], cmc: 0, elo: null, type_line: '', image_normal: '', image_small: '' };
+        }
+
+        // Lobby roster in deterministic join order: (ts, clientId). First in hosts.
+        function podLobbyList() {
+            const lb = (podState && podState.lobby) || {};
+            return Object.entries(lb)
+                .map(([cid, v]) => ({ clientId: cid, name: (v && v.name) || 'Anonymous', ts: (v && v.ts) || 0 }))
+                .sort((a, b) => (a.ts - b.ts) || (a.clientId < b.clientId ? -1 : 1));
+        }
+        function podHostId() {
+            const list = podLobbyList();
+            return list.length ? list[0].clientId : null;
+        }
+
+        function hostStartPod() {
+            if (podHostId() !== myClientId) { showToast('Only the host (first to arrive) can start.', 'error'); return; }
+            if (!(state.cube && state.cube.length)) { showToast('Load a cube back in setup to host this draft.', 'error'); return; }
+            if (podHostBusy) return;
+
+            const humans = podLobbyList().slice(0, 8);   // seats cap at 8; latecomers spectate
+            const wantSeats = parseInt(document.getElementById('packSeats')?.value) || 8;
+            const seats = Math.min(8, Math.max(wantSeats, humans.length, 2));
+            const numPacks = parseInt(document.getElementById('packCount')?.value) || 3;
+            const packSize = parseInt(document.getElementById('packSize')?.value) || 15;
+            const needed = seats * numPacks * packSize;
+            if (needed > state.cube.length) {
+                showToast(`Need ${needed} cards but cube has ${state.cube.length}. Lower packs / seats / size.`, 'error');
+                return;
+            }
+
+            podHostBusy = true;
+            const pool = packShuffle(state.cube.slice()).slice(0, needed);
+            const order = pool.map(c => c.name);
+            const cardList = [];
+            const seen = new Set();
+            pool.forEach(c => {
+                if (seen.has(c.name)) return;
+                seen.add(c.name);
+                cardList.push({
+                    name: c.name, colors: c.colors || [], cmc: c.cmc || 0,
+                    elo: (c.elo ?? null), type_line: c.type_line || '',
+                    image_normal: c.image_normal || '', image_small: c.image_small || '',
+                    arena: (c.arena === undefined ? null : c.arena)
+                });
+            });
+
+            // Humans fill seats in join order (host = seat 0); bots take the rest.
+            const seatNames = [], seatClients = [];
+            for (let s = 0; s < seats; s++) {
+                if (s < humans.length) { seatNames.push(humans[s].name); seatClients.push(humans[s].clientId); }
+                else { seatNames.push(`Bot ${s + 1}`); seatClients.push(''); }
+            }
+
+            const setup = {
+                format: 'pod', seats, numPacks, packSize,
+                cubeName: state.cubeName || '', started: true, ts: Date.now(),
+                seatNames, seatClients,
+                eloThresholds: gradeThresholds || computeGradeThresholds(state.cube)
+            };
+            podRef.update({ setup, order, cards: cardList, picks: null });   // picks:null resets the log
+            showToast(`Pod draft started — ${humans.length} human${humans.length === 1 ? '' : 's'}, ${seats - Math.min(humans.length, seats)} bot${seats - Math.min(humans.length, seats) === 1 ? '' : 's'}!`, 'success');
+        }
+
+        /* ---- Replay the pick log into a table every client derives identically ---- */
+        function derivePod(ps) {
+            const su = (ps && ps.setup) || {};
+            if (!su.started) return { started: false };
+            const seats = su.seats, R = su.numPacks, P = su.packSize;
+            const order = Array.isArray(ps.order) ? ps.order : Object.values(ps.order || {});
+            const seatClients = su.seatClients || [];
+            const isBot = s => !seatClients[s];
+            const humanPicks = ps.picks || {};
+
+            const dir = r => (r % 2 === 0 ? 1 : -1);                                   // pass left, then right, then left…
+            const heldIdx = (s, r, p) => ((s - dir(r) * (p - 1)) % seats + seats) % seats;   // which pack seat s holds at pick p
+            const holderOf = (j, r, p) => ((j + dir(r) * (p - 1)) % seats + seats) % seats;  // who holds pack j at pick p
+            const initialPack = (r, j) => order.slice((r * seats + j) * P, (r * seats + j + 1) * P);
+
+            const resolved = {};                 // `${r}_${p}_${s}` -> cardName (humans + bots)
+            const removed = {};                  // `${r}_${j}` -> Map(name -> count taken)
+            const pools = Array.from({ length: seats }, () => []);
+            const colorMemory = Array.from({ length: seats }, () => ({ W: 0, U: 0, B: 0, R: 0, G: 0 }));
+
+            const packRemaining = (r, j) => {
+                const taken = removed[r + '_' + j];
+                if (!taken) return initialPack(r, j).slice();
+                const counts = new Map(taken);   // copy — supports duplicate card names
+                return initialPack(r, j).filter(n => {
+                    const k = counts.get(n) || 0;
+                    if (k > 0) { counts.set(n, k - 1); return false; }
+                    return true;
+                });
+            };
+            const takeFromPack = (r, j, name) => {
+                const m = removed[r + '_' + j] || (removed[r + '_' + j] = new Map());
+                m.set(name, (m.get(name) || 0) + 1);
+            };
+
+            let curRound = null;
+            let np = null;                       // per-seat next-pick pointer within the blocked round
+
+            for (let r = 0; r < R; r++) {
+                np = new Array(seats).fill(1);
+                let resolvedInRound = 0, progress = true;
+                while (resolvedInRound < seats * P && progress) {
+                    progress = false;
+                    for (let s = 0; s < seats; s++) {
+                        const p = np[s];
+                        if (p > P) continue;
+                        const j = heldIdx(s, r, p);
+                        // Pack availability: every earlier pick made from this pack must exist
+                        let avail = true;
+                        for (let q = 1; q < p; q++) {
+                            if (!resolved[`${r}_${q}_${holderOf(j, r, q)}`]) { avail = false; break; }
+                        }
+                        if (!avail) continue;
+                        const remaining = packRemaining(r, j);
+                        let cardName = null;
+                        if (isBot(s)) {
+                            // Deterministic bot: rating + 0.35·(cards already taken in that color),
+                            // ties broken alphabetically so every client agrees.
+                            let best = null, bestScore = -Infinity;
+                            remaining.forEach(n => {
+                                const c = podCard(n);
+                                let sc = packCardRating(c);
+                                (c.colors || []).forEach(col => { sc += 0.35 * (colorMemory[s][col] || 0); });
+                                if (sc > bestScore + 1e-9 || (Math.abs(sc - bestScore) <= 1e-9 && best !== null && n < best)) {
+                                    best = n; bestScore = sc;
+                                }
+                            });
+                            cardName = best;
+                        } else {
+                            const hp = humanPicks[`${r}_${p}_${s}`];
+                            if (!hp) continue;   // waiting on this human
+                            cardName = hp.card || hp;
+                            if (!remaining.includes(cardName)) {
+                                console.warn(`Pod pick ${r}_${p}_${s} (${cardName}) not in pack — substituting to keep the draft moving`);
+                                cardName = remaining[0];
+                            }
+                        }
+                        if (cardName == null) { np[s] = P + 1; continue; }   // empty-pack safety net
+                        resolved[`${r}_${p}_${s}`] = cardName;
+                        takeFromPack(r, j, cardName);
+                        const cc = podCard(cardName);
+                        (cc.colors || []).forEach(col => { colorMemory[s][col] = (colorMemory[s][col] || 0) + 1; });
+                        pools[s].push(cardName);
+                        np[s]++;
+                        resolvedInRound++;
+                        progress = true;
+                    }
+                }
+                if (resolvedInRound < seats * P) { curRound = r; break; }
+            }
+
+            const done = curRound === null;
+            const view = { started: true, done, seats, round: curRound, pools, su };
+            if (!done) {
+                const r = curRound;
+                view.nextPick = np.slice();
+                view.seatInfo = [];
+                for (let s = 0; s < seats; s++) {
+                    const p = np[s];
+                    const info = { seat: s, name: (su.seatNames || [])[s] || `Seat ${s + 1}`, bot: isBot(s), picksInRound: p - 1, finishedRound: p > P, pickable: false, held: null, blocker: null };
+                    if (p <= P && !isBot(s)) {
+                        const j = heldIdx(s, r, p);
+                        let qBlock = 0;
+                        for (let q = 1; q < p; q++) {
+                            if (!resolved[`${r}_${q}_${holderOf(j, r, q)}`]) { qBlock = q; break; }
+                        }
+                        if (qBlock === 0) {
+                            info.pickable = true;
+                            info.held = packRemaining(r, j);
+                        } else {
+                            info.blocker = holderOf(j, r, qBlock);   // the human at the root of the jam
+                        }
+                    }
+                    view.seatInfo.push(info);
+                }
+            }
+            return view;
+        }
+
+        function podConfirm() {
+            if (!podActive || podSeat === null || !podState) return;
+            if (mnStage.length !== 1) { showToast('Select a card first', 'info'); return; }
+            const v = derivePod(podState);
+            if (!v.started || v.done) return;
+            const me = v.seatInfo[podSeat];
+            if (!me || !me.pickable) { showToast('Waiting for a pack to arrive…', 'info'); return; }
+            const name = mnStage[0];
+            if (!me.held.includes(name)) { showToast('Selection out of date — try again', 'error'); mnClearStage(); return; }
+            mnStage = [];
+            const key = `${v.round}_${v.nextPick[podSeat]}_${podSeat}`;
+            // First-writer-wins: a double-click or second tab aborts instead of overwriting
+            podRef.child('picks/' + key).transaction(
+                existing => existing === null ? { card: name, ts: Date.now() } : undefined
+            );
+        }
+
+        function renderPodDraft() {
+            if (!podState || !podState.setup || !podState.setup.started) { renderPodLobby(); return; }
+            const v = derivePod(podState);
+            if (v.done) { renderPodComplete(v); return; }
+
+            const su = v.su;
+            const r = v.round;
+            const dirLabel = (r % 2 === 0) ? '← passing left' : 'passing right →';
+
+            if (podSeat === null) {   // spectator
+                document.getElementById('mnConfirmBar').style.display = 'none';
+                document.getElementById('packTitle').textContent = `Live Pod — Pack ${r + 1} of ${su.numPacks} (spectating)`;
+                document.getElementById('packMeta').innerHTML = `<span>${su.seats} seats</span><span class="pb-dir">${dirLabel}</span>`;
+                document.getElementById('boosterGrid').classList.remove('single-row');
+                document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
+                    <h2>👀 Spectating</h2>
+                    <div class="pc-sub">This pod's seats were assigned when the host started. Watch the table on the right, or heckle in the chat.</div>
+                    <div style="margin-top:14px;"><button class="secondary" onclick="exitPackDraft()">Back to setup</button></div>
+                </div>`;
+                renderPodSeats(v);
+                return;
+            }
+
+            const me = v.seatInfo[podSeat];
+            const myPool = (v.pools[podSeat] || []).map(podCard);
+            const p = v.nextPick[podSeat];
+            document.getElementById('packExportBtn').style.display = 'none';
+            document.getElementById('packTitle').textContent = `Live Pod — Pack ${r + 1}, Pick ${Math.min(p, su.packSize)}`;
+            document.getElementById('packMeta').innerHTML =
+                `<span>${su.seats} seats</span>` +
+                `<span class="pb-dir">${dirLabel}</span>` +
+                (me.pickable ? `<span>${me.held.length} card${me.held.length === 1 ? '' : 's'} in this pack</span>` : '') +
+                `<span>You've drafted ${myPool.length}</span>`;
+
+            if (me.pickable) {
+                mnSyncStageKey('pod:' + r + ':' + p);
+                renderMnPickGrid(me.held.map(podCard), 1, 0, false);
+            } else {
+                document.getElementById('mnConfirmBar').style.display = 'none';
+                const grid = document.getElementById('boosterGrid');
+                grid.classList.remove('single-row');
+                let who;
+                if (me.finishedRound) {
+                    const stillPicking = v.seatInfo.filter(si => !si.bot && !si.finishedRound).map(si => escapeHtml(si.name));
+                    who = stillPicking.length ? `Waiting for ${stillPicking.join(', ')} to finish Pack ${r + 1}` : 'Opening the next pack…';
+                } else if (me.blocker !== null) {
+                    who = `Your next pack is stuck behind ${escapeHtml((su.seatNames || [])[me.blocker] || 'a neighbor')}`;
+                } else {
+                    who = 'Waiting for your next pack…';
+                }
+                grid.innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
+                    <h2>⏳ ${who}</h2>
+                    <div class="pc-sub">Packs pass around the table as everyone picks. Hang tight — or say hi in the chat.</div></div>`;
+            }
+
+            // "Your pick!" nudge on the not-pickable → pickable transition
+            if (me.pickable && !podLastPickable) { showToast('Your pick!', 'success'); playTurnSound(); }
+            podLastPickable = me.pickable;
+
+            renderPoolPanel(myPool);
+            renderPodSeats(v);
+        }
+
+        function renderPodSeats(v) {
+            const su = v.su;
+            const rows = v.seatInfo.map(si => {
+                const isMe = si.seat === podSeat;
+                const amBlockedByThem = podSeat !== null && v.seatInfo[podSeat] && v.seatInfo[podSeat].blocker === si.seat;
+                const cls = 'pod-seat-row' + (isMe ? ' me' : '') + (amBlockedByThem ? ' waiting-on' : '');
+                const tag = si.bot ? '🤖 ' : presenceDot(si.name);
+                const status = si.finishedRound ? '✓ pack done' : `pick ${si.picksInRound + 1}`;
+                return `<div class="${cls}">
+                    <span>${tag}${escapeHtml(si.name)}${isMe ? ' (you)' : ''}</span>
+                    <span class="ps-picks">${(v.pools[si.seat] || []).length} cards · ${status}</span>
+                </div>`;
+            }).join('');
+            document.getElementById('botStatus').innerHTML =
+                `<div class="pod-seats">${rows}</div>` +
+                `<div style="color:#889; font-size:0.74rem; margin-top:6px;">Picks are hidden until the draft ends — this table only shows progress. 🂠</div>`;
+        }
+
+        function renderPodComplete(v) {
+            document.getElementById('mnConfirmBar').style.display = 'none';
+            document.getElementById('packTitle').textContent = 'Pod draft complete! 🎉';
+            document.getElementById('packMeta').innerHTML = `<span>${v.su.seats} seats · ${v.su.numPacks} packs of ${v.su.packSize}</span>`;
+            document.getElementById('boosterGrid').classList.remove('single-row');
+
+            const isHost = podHostId() === myClientId;
+            const mine = podSeat !== null ? (v.pools[podSeat] || []).map(podCard) : [];
+            document.getElementById('packExportBtn').style.display = podSeat !== null ? 'inline-block' : 'none';
+            document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
+                <h2>🎉 That's a wrap</h2>
+                <div class="pc-sub">${podSeat !== null ? 'Your full pool is on the right. Add basics and build your 40, then take it to Arena.' : 'The pod has finished drafting.'}</div>
+                ${podSeat !== null ? `<button onclick="exportPackPool()">📤 Export / Copy to Arena</button>` : ''}
+                ${isHost ? `<button onclick="hostStartPod()">➡️ Run it back (new pod)</button>` : ''}
+                <button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Leave</button>
+            </div>`;
+            if (podSeat !== null) renderPoolPanel(mine);
+            renderPodSeats2Complete(v);
+        }
+
+        // At draft end everything is public — show every seat's pool count (pools reveal via export/sharing).
+        function renderPodSeats2Complete(v) {
+            const rows = v.pools.map((pool, s) => {
+                const name = (v.su.seatNames || [])[s] || `Seat ${s + 1}`;
+                const bot = !(v.su.seatClients || [])[s];
+                return `<div class="pod-seat-row${s === podSeat ? ' me' : ''}">
+                    <span>${bot ? '🤖 ' : ''}${escapeHtml(name)}${s === podSeat ? ' (you)' : ''}</span>
+                    <span class="ps-picks">${pool.length} cards</span>
+                </div>`;
+            }).join('');
+            document.getElementById('botStatus').innerHTML = `<div class="pod-seats">${rows}</div>`;
+        }
+
+        function renderPodLobby() {
+            document.getElementById('mnConfirmBar').style.display = 'none';
+            const list = podLobbyList();
+            const hostId = podHostId();
+            const isHost = hostId === myClientId;
+            const haveCube = !!(state.cube && state.cube.length);
+            const wantSeats = parseInt(document.getElementById('packSeats')?.value) || 8;
+
+            document.getElementById('packTitle').textContent = 'Live Booster Pod — Lobby';
+            document.getElementById('packMeta').innerHTML = `<span>${list.length} joined</span><span>${isHost ? 'You are the host' : 'Waiting for the host'}</span>`;
+            document.getElementById('packExportBtn').style.display = 'none';
+
+            const roster = list.map((e, i) => {
+                const you = e.clientId === myClientId;
+                return `<div class="pod-seat-row${you ? ' me' : ''}" style="max-width:420px; margin:0 auto;">
+                    <span>${i === 0 ? '👑 ' : ''}${escapeHtml(e.name)}${you ? ' (you)' : ''}</span>
+                    <span class="ps-picks">${i === 0 ? 'host' : 'seat ' + (i + 1)}</span>
+                </div>`;
+            }).join('');
+
+            let actions = '';
+            if (isHost) {
+                if (!haveCube) actions = `<div class="pc-sub">Load a cube back in setup to host this draft.</div>`;
+                else actions = `<button onclick="hostStartPod()">Start the pod — ${Math.min(8, Math.max(wantSeats, list.length, 2))} seats, bots fill the rest</button>
+                    <div class="pc-sub" style="margin-top:8px;">Seats, pack count, and pack size come from your Booster settings back in setup.</div>`;
+            } else {
+                actions = `<div class="pc-sub">Waiting for ${escapeHtml(list.length ? list[0].name : 'the host')} to start the draft…</div>`;
+            }
+
+            document.getElementById('boosterGrid').classList.remove('single-row');
+            document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
+                <h2>🌐 Live Booster Pod</h2>
+                <div class="pc-sub">Room code: <strong>${roomCode}</strong> — share it. Friends join the room, pick Booster → Play live, and appear below. Empty seats become bots when the host starts.</div>
+                <div class="pod-seats" style="margin:12px 0;">${roster}</div>
+                ${actions}
+                <div style="margin-top:14px;"><button class="secondary" onclick="exitPackDraft()">Back to setup</button></div>
+            </div>`;
+            document.getElementById('botStatus').innerHTML = '';
+            document.getElementById('poolMini').innerHTML = '<p class="text-muted">No picks yet</p>';
+            document.getElementById('poolCount').textContent = '0';
+            document.getElementById('poolCurve').innerHTML = '';
+        }
+
 
 
     </script>
