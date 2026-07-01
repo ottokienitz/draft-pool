@@ -3003,7 +3003,7 @@ Supports:
                     image_small: card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small || '',
                     image_normal: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal || '',
                     tags: [],
-                    arena: Array.isArray(card.games) ? card.games.includes('arena') : null,
+                    arena: (Array.isArray(card.games) && card.games.includes('arena')) ? true : null,   // per-PRINTING field — absence proves nothing
                     picked: false,
                     pickedBy: null
                 }));
@@ -3044,6 +3044,7 @@ Supports:
                 
                 writeCube();
                 saveMeta({ cubeName: state.cubeName, cubeSource: state.cubeSource, cubeId: state.cubeId });
+                checkArenaLegality();   // resolve unknowns card-wide, not per-printing
                 
                 document.getElementById('cubeStatus').textContent = `✓ ${state.cube.length} cards loaded from "${state.cubeName}"`;
                 document.getElementById('startDraftBtn').disabled = false;
@@ -3055,41 +3056,40 @@ Supports:
             }
         }
         
-        // Backfill Arena legality for cubes that arrived without it (the CubeCobra
-        // cubeJSON path has no `games` data). Runs in the background after load;
+        // Resolve Arena availability CARD-wide, not per-printing. Scryfall's `games`
+        // field describes one printing, so only a positive there is trusted; every
+        // card not yet proven true is checked against a `game:arena` search, which
+        // matches a card if ANY of its printings is on Arena. Found → true, absent
+        // from results → genuinely not on Arena. Runs in the background after load;
         // rewrites the cube node once when done so everyone in the room gets it.
         async function checkArenaLegality() {
-            const missing = state.cube.filter(c => c.arena === null || c.arena === undefined);
-            if (missing.length === 0) return;
+            const face = n => (n || '').split(' // ')[0].toLowerCase();
+            const unknown = state.cube.filter(c => c.arena !== true);   // null, undefined, AND stale false — re-verify all
+            if (unknown.length === 0) return;
             try {
-                const batchSize = 75;
-                const legality = new Map();   // lowercased name -> bool
-                for (let i = 0; i < missing.length; i += batchSize) {
-                    const batch = missing.slice(i, i + batchSize);
-                    const response = await fetch('https://api.scryfall.com/cards/collection', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ identifiers: batch.map(c => ({ name: c.name })) })
-                    });
+                const batchSize = 20;   // keeps the OR-query URL comfortably short
+                const onArena = new Set();
+                for (let i = 0; i < unknown.length; i += batchSize) {
+                    const batch = unknown.slice(i, i + batchSize);
+                    const q = 'game:arena (' + batch.map(c => `!"${face(c.name)}"`).join(' or ') + ')';
+                    const response = await fetch('https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q));
                     if (response.ok) {
                         const data = await response.json();
-                        (data.data || []).forEach(card => {
-                            legality.set(card.name.toLowerCase(), Array.isArray(card.games) && card.games.includes('arena'));
-                        });
+                        (data.data || []).forEach(card => onArena.add(face(card.name)));
                     }
-                    if (i + batchSize < missing.length) await new Promise(r => setTimeout(r, 100));
+                    // A 404 here is Scryfall's "no results" — the whole batch is genuinely off-Arena.
+                    if (i + batchSize < unknown.length) await new Promise(r => setTimeout(r, 100));
                 }
                 let notOnArena = 0;
                 state.cube.forEach(c => {
-                    if (c.arena === null || c.arena === undefined) {
-                        const v = legality.get(c.name.toLowerCase());
-                        if (v !== undefined) c.arena = v;
-                    }
+                    if (c.arena !== true) c.arena = onArena.has(face(c.name));
                     if (c.arena === false) notOnArena++;
                 });
                 writeCube();   // one extra cube write at load time, so the room shares the flags
                 if (notOnArena > 0) {
                     showToast(`⚠️ ${notOnArena} card${notOnArena === 1 ? ' is' : 's are'} not on MTG Arena (flagged in the list)`, 'info');
+                } else {
+                    console.log('Arena legality: every card in the cube is available on Arena.');
                 }
                 updateCubeList();
             } catch (e) {
