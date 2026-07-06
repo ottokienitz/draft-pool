@@ -5518,17 +5518,37 @@ Respond with ONLY this JSON (no markdown, no extra text):
             ev.currentTarget.classList.add('dragging');
         }
         function poolDragEnd(ev) { ev.currentTarget.classList.remove('dragging'); poolDragName = null; }
-        function poolColDragOver(ev) { ev.preventDefault(); try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {} ev.currentTarget.classList.add('drag-over'); }
-        function poolColDragLeave(ev) {
-            if (ev.currentTarget.contains(ev.relatedTarget)) return;   // still inside — a child fired this
-            ev.currentTarget.classList.remove('drag-over');
+        // The whole column ROW is the drop surface; the target MV column is
+        // resolved from the cursor's X alone. Empty columns, short columns,
+        // even the gaps between columns — all land where you'd expect.
+        function poolColAt(row, x) {
+            const cols = [...row.querySelectorAll(':scope > .pool-col')];
+            let best = null, bestDist = Infinity;
+            for (const col of cols) {
+                const r = col.getBoundingClientRect();
+                if (x >= r.left && x <= r.right) return col;
+                const d = Math.min(Math.abs(x - r.left), Math.abs(x - r.right));
+                if (d < bestDist) { bestDist = d; best = col; }
+            }
+            return best;
         }
-        function poolColDrop(ev, mv) {
+        function poolRowDragOver(ev) {
             ev.preventDefault();
-            ev.currentTarget.classList.remove('drag-over');
+            try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {}
+            const col = poolColAt(ev.currentTarget, ev.clientX);
+            ev.currentTarget.querySelectorAll(':scope > .pool-col').forEach(c => c.classList.toggle('drag-over', c === col));
+        }
+        function poolRowDragLeave(ev) {
+            if (ev.currentTarget.contains(ev.relatedTarget)) return;   // still inside — a child fired this
+            ev.currentTarget.querySelectorAll(':scope > .pool-col').forEach(c => c.classList.remove('drag-over'));
+        }
+        function poolRowDrop(ev) {
+            ev.preventDefault();
+            const col = poolColAt(ev.currentTarget, ev.clientX);
+            ev.currentTarget.querySelectorAll(':scope > .pool-col').forEach(c => c.classList.remove('drag-over'));
             let name = poolDragName;
             try { name = ev.dataTransfer.getData('text/plain') || name; } catch (e) {}
-            if (name) setCardMv(name, mv);
+            if (name && col && col.dataset.mv !== undefined) setCardMv(name, parseInt(col.dataset.mv));
         }
 
         // A single card "chip". `action` ('demote' | 'promote') adds a move button.
@@ -5690,10 +5710,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function poolCmcColumnsHTML(cards, action) {
             const cols = [[], [], [], [], [], [], [], []];
             cards.forEach(c => { cols[effMv(c)].push(c); });
-            return `<div class="pool-columns">` + cols.map((arr, mv) => {
+            return `<div class="pool-columns" ondragover="poolRowDragOver(event)" ondragleave="poolRowDragLeave(event)" ondrop="poolRowDrop(event)">` + cols.map((arr, mv) => {
                 const sorted = arr.slice().sort((a, b) =>
                     getColorSortOrder(a.colors, a.type_line) - getColorSortOrder(b.colors, b.type_line) || a.name.localeCompare(b.name));
-                return `<div class="pool-col" ondragover="poolColDragOver(event)" ondragleave="poolColDragLeave(event)" ondrop="poolColDrop(event, ${mv})"><div class="pcg-head">${mv}${mv >= 7 ? '+' : ''}${arr.length ? ` · ${arr.length}` : ''}</div>${sorted.map(c => deckCardHTML(c, action, true)).join('')}</div>`;
+                return `<div class="pool-col" data-mv="${mv}"><div class="pcg-head">${mv}${mv >= 7 ? '+' : ''}${arr.length ? ` · ${arr.length}` : ''}</div>${sorted.map(c => deckCardHTML(c, action, true)).join('')}</div>`;
             }).join('') + `</div>`;
         }
         function poolBodyHTML(cards, mode, action) {
