@@ -1753,7 +1753,7 @@
             margin-left: auto; padding: 6px 10px; background: rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.8rem; cursor: pointer;
         }
-        .pool-columns { display: flex; gap: 10px; align-items: flex-start; overflow-x: auto; padding-bottom: 6px; }
+        .pool-columns { display: flex; gap: 10px; align-items: stretch; overflow-x: auto; padding-bottom: 6px; }
         .pool-col { flex: 1 1 0; min-width: 108px; background: rgba(255,255,255,0.025); border-radius: 8px; padding: 8px 8px 10px; min-height: 64px; }
         .pool-col .pcg-head {
             font-size: 0.72rem; color: #8ad8d0; text-transform: uppercase; letter-spacing: 0.5px;
@@ -5141,7 +5141,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 const burnMark = willBurn ? '<div class="mn-burnmark">🔥 burn</div>' : '';
                 return `<div class="${cls}" onclick="mnToggleSelect('${safe}')"
                      onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
-                     ${inner}${tick}${burnMark}<div class="bc-name">${card.name}</div></div>`;
+                     ${inner}${tick}${burnMark}</div>`;
             }).join('');
 
             const bar = document.getElementById('mnConfirmBar');
@@ -5458,8 +5458,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             if (img) {
                 return `<div class="booster-card" onclick="${handler}('${safe}')"
                      onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
-                     <img src="${img}" alt="${card.name}" loading="lazy">${elo}
-                     <div class="bc-name">${card.name}</div></div>`;
+                     <img src="${img}" alt="${card.name}" loading="lazy">${elo}</div>`;
             }
             return `<div class="booster-card no-img" onclick="${handler}('${safe}')"
                  onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
@@ -5520,7 +5519,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
         function poolDragEnd(ev) { ev.currentTarget.classList.remove('dragging'); poolDragName = null; }
         function poolColDragOver(ev) { ev.preventDefault(); try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {} ev.currentTarget.classList.add('drag-over'); }
-        function poolColDragLeave(ev) { ev.currentTarget.classList.remove('drag-over'); }
+        function poolColDragLeave(ev) {
+            if (ev.currentTarget.contains(ev.relatedTarget)) return;   // still inside — a child fired this
+            ev.currentTarget.classList.remove('drag-over');
+        }
         function poolColDrop(ev, mv) {
             ev.preventDefault();
             ev.currentTarget.classList.remove('drag-over');
