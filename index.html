@@ -1697,6 +1697,8 @@
             cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.45); font-size: 0.9rem;
         }
         .chat-reopen .chat-unread { margin-left: 4px; }
+        .chat-reopen, .reader-reopen { cursor: grab; touch-action: none; }
+        .chat-reopen:active, .reader-reopen:active { cursor: grabbing; }
         /* Right column (card reader + table) */
         .pack-side { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
         .pack-side .pool-panel:last-child { flex: 1 1 auto; min-height: 0; }
@@ -2183,7 +2185,7 @@ Supports:
             </div>
             <div class="cr-grip" id="crGrip" title="Drag to resize">⤡</div>
         </div>
-        <button class="reader-reopen" id="readerReopen" style="display: none;" onclick="reopenCardReader()">🔍 Card Reader</button>
+        <button class="reader-reopen" id="readerReopen" style="display: none;">🔍 Card Reader</button>
 
         <div class="export-modal" id="exportModal" style="display:none;">
             <div class="export-box">
@@ -2240,7 +2242,7 @@ Supports:
                 <button onclick="sendChat()">Send</button>
             </div>
         </div>
-        <button class="chat-reopen" id="chatReopen" style="display: none;" onclick="showChat()">💬 Chat<span class="chat-unread" id="chatReopenUnread" style="display: none;">0</span></button>
+        <button class="chat-reopen" id="chatReopen" style="display: none;">💬 Chat<span class="chat-unread" id="chatReopenUnread" style="display: none;">0</span></button>
         
         <!-- Pick Announcement Overlay -->
         <div class="pick-announcement" id="pickAnnouncement" style="display: none;">
@@ -4271,7 +4273,64 @@ Supports:
             header.addEventListener('pointercancel', endDrag);
             window.addEventListener('resize', clampChat);
         }
-        function initFloatingWindows() { initChatDrag(); initCardReader(); }
+        /* ---- Minimized pills (💬 Chat / 🔍 Card Reader) are draggable too:
+           grab one and park it anywhere; a plain click still reopens. The
+           position persists per pill in localStorage. ---- */
+        function makePillDraggable(pill, storageKey, onClick) {
+            if (!pill) return;
+
+            const apply = (left, top) => {
+                const w = pill.offsetWidth || 120, h = pill.offsetHeight || 40;
+                left = Math.max(0, Math.min(left, window.innerWidth - Math.min(w, window.innerWidth)));
+                top = Math.max(0, Math.min(top, window.innerHeight - h));
+                pill.style.left = left + 'px'; pill.style.top = top + 'px';
+                pill.style.right = 'auto'; pill.style.bottom = 'auto';
+            };
+
+            // Restore a saved parking spot
+            try {
+                const s = JSON.parse(localStorage.getItem(storageKey) || 'null');
+                if (s && typeof s.left === 'number') apply(s.left, s.top);
+            } catch (e) {}
+
+            window.addEventListener('resize', () => {
+                if (pill.style.left) apply(parseFloat(pill.style.left), parseFloat(pill.style.top));
+            });
+
+            let startX = 0, startY = 0, origL = 0, origT = 0, dragging = false, moved = false;
+            pill.addEventListener('pointerdown', ev => {
+                dragging = true; moved = false;
+                startX = ev.clientX; startY = ev.clientY;
+                const r = pill.getBoundingClientRect();
+                origL = r.left; origT = r.top;
+                pill.setPointerCapture(ev.pointerId);
+            });
+            pill.addEventListener('pointermove', ev => {
+                if (!dragging) return;
+                const dx = ev.clientX - startX, dy = ev.clientY - startY;
+                if (!moved && Math.hypot(dx, dy) < 5) return;   // ignore hand tremor — still a click
+                moved = true;
+                apply(origL + dx, origT + dy);
+            });
+            pill.addEventListener('pointerup', ev => {
+                if (!dragging) return;
+                dragging = false;
+                try { pill.releasePointerCapture(ev.pointerId); } catch (e) {}
+                if (moved) {
+                    try { localStorage.setItem(storageKey, JSON.stringify({ left: parseFloat(pill.style.left), top: parseFloat(pill.style.top) })); } catch (e) {}
+                } else if (onClick) {
+                    onClick();   // no real movement → treat as a click
+                }
+            });
+            pill.addEventListener('pointercancel', () => { dragging = false; });
+        }
+
+        function initFloatingWindows() {
+            initChatDrag();
+            initCardReader();
+            makePillDraggable(document.getElementById('chatReopen'), 'rotoChatPillPos', showChat);
+            makePillDraggable(document.getElementById('readerReopen'), 'rotoReaderPillPos', reopenCardReader);
+        }
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initFloatingWindows);
         else initFloatingWindows();
         
