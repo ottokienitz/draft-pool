@@ -1661,10 +1661,11 @@
             background: rgba(0,0,0,0.35); border: 1px solid rgba(78,205,196,0.35);
             border-radius: 10px; padding: 8px 14px; margin-bottom: 0;   /* .pack-left gap spaces it */
         }
-        .mn-confirm-bar .mcb-status { font-size: 0.92rem; }
+        .mn-confirm-bar .mcb-ctx { flex: 1 1 auto; min-width: 0; }
+        .mn-confirm-bar .mcb-status { font-size: 0.92rem; white-space: nowrap; }
         .mn-confirm-bar .mcb-status strong { color: #4ecdc4; }
         .mn-confirm-bar .mcb-burn { color: #e08283; }
-        .mn-confirm-bar .mcb-spacer { margin-left: auto; display: flex; gap: 8px; }
+        .mn-confirm-bar .mcb-spacer { display: flex; gap: 8px; }
         .mn-confirm-bar button.mcb-confirm:disabled { opacity: 0.45; cursor: not-allowed; }
 
         /* Curve-grouped pool + viewable piles */
@@ -5346,11 +5347,28 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 ? ` · <span class="mcb-burn">the other ${held.length - picksNeeded} will burn 🔥</span>`
                 : '';
             bar.innerHTML =
+                `<span class="mcb-ctx pb-meta" id="mcbCtx"></span>` +
                 `<span class="mcb-status">Selected <strong>${mnStage.length}/${picksNeeded}</strong>${burnNote}</span>` +
                 `<span class="mcb-spacer">` +
                 `<button class="small secondary" onclick="mnClearStage()" ${mnStage.length ? '' : 'disabled'}>Clear</button>` +
                 `<button class="small mcb-confirm" onclick="mnConfirm()" ${full ? '' : 'disabled'}>Lock in ${picksNeeded === 1 ? 'pick' : 'picks'}</button>` +
                 `</span>`;
+            // The pack instructions move down here (the bar's empty left half),
+            // leaving the header meta hidden while picking. queueMicrotask lets the
+            // calling renderer finish writing packMeta first, whatever its order.
+            queueMicrotask(() => {
+                const pm = document.getElementById('packMeta');
+                const ctx = document.getElementById('mcbCtx');
+                if (pm && ctx) { ctx.innerHTML = pm.innerHTML; pm.style.display = 'none'; }
+            });
+        }
+
+        // Hiding the bar hands the instructions back to the header strip.
+        function hideMnBar() {
+            const bar = document.getElementById('mnConfirmBar');
+            if (bar) bar.style.display = 'none';
+            const pm = document.getElementById('packMeta');
+            if (pm) pm.style.display = '';
         }
 
         function mnConfirm() {
@@ -5957,7 +5975,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         function renderPackComplete() {
             const pd = packDraft;
             bankDraftPool(pd);
-            document.getElementById('mnConfirmBar').style.display = 'none';
+            hideMnBar();
             document.getElementById('packTitle').textContent = 'Draft complete! 🎉';
             const remainTxt = (pd.fixedPool && draftPool) ? ` · ${draftPool.remainingNames.length} cards left in the pool` : '';
             document.getElementById('packMeta').innerHTML = `<span>You drafted ${pd.pool.length} cards across ${pd.numPacks} packs.${remainTxt}</span>`;
@@ -6518,7 +6536,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 mnSyncStageKey('live:' + v.round + ':' + v.phase);
                 renderMnPickGrid(myHeld, v.sched[v.phase], (liveState.meta.burns || [0, 0, 0])[v.phase]);
             } else {
-                document.getElementById('mnConfirmBar').style.display = 'none';
+                hideMnBar();
                 grid.classList.remove('single-row');
                 const oppOffline = Object.keys(presenceData || {}).length > 0 && !onlineNames().has((oppName() || '').toLowerCase());
                 grid.innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
@@ -6556,7 +6574,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
         let mnLobbyLastJoined = 0;   // seat-count watermark → toast + chime when the 2nd player lands
         function renderLiveLobby() {
-            document.getElementById('mnConfirmBar').style.display = 'none';
+            hideMnBar();
             const seats = (liveState && liveState.seats) || {};
             const p0 = seats['0'] && seats['0'].name;
             const p1 = seats['1'] && seats['1'].name;
@@ -6614,7 +6632,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function renderLiveComplete(v) {
-            document.getElementById('mnConfirmBar').style.display = 'none';
+            hideMnBar();
             document.getElementById('packTitle').textContent = 'Live draft complete! 🎉';
             document.getElementById('packMeta').innerHTML = `<span>All face-down picks are now revealed.</span>`;
             document.getElementById('packExportBtn').style.display = 'inline-block';
@@ -6933,7 +6951,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const dirLabel = (r % 2 === 0) ? '← passing left' : 'passing right →';
 
             if (podSeat === null) {   // spectator
-                document.getElementById('mnConfirmBar').style.display = 'none';
+                hideMnBar();
                 document.getElementById('packTitle').textContent = `Live Pod — Pack ${r + 1} of ${su.numPacks} (spectating)`;
                 document.getElementById('packMeta').innerHTML = `<span>${su.seats} seats</span><span class="pb-dir">${dirLabel}</span>`;
                 document.getElementById('boosterGrid').classList.remove('single-row');
@@ -6961,7 +6979,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 mnSyncStageKey('pod:' + r + ':' + p);
                 renderMnPickGrid(me.held.map(podCard), 1, 0, false);
             } else {
-                document.getElementById('mnConfirmBar').style.display = 'none';
+                hideMnBar();
                 const grid = document.getElementById('boosterGrid');
                 grid.classList.remove('single-row');
                 let who;
@@ -7007,7 +7025,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function renderPodComplete(v) {
-            document.getElementById('mnConfirmBar').style.display = 'none';
+            hideMnBar();
             document.getElementById('packTitle').textContent = 'Pod draft complete! 🎉';
             document.getElementById('packMeta').innerHTML = `<span>${v.su.seats} seats · ${v.su.numPacks} packs of ${v.su.packSize}</span>`;
             document.getElementById('boosterGrid').classList.remove('single-row');
@@ -7040,7 +7058,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function renderPodLobby() {
-            document.getElementById('mnConfirmBar').style.display = 'none';
+            hideMnBar();
             const list = podLobbyList();
             const hostId = podHostId();
             const isHost = hostId === myClientId;
