@@ -1669,6 +1669,10 @@
         .mn-confirm-bar button.mcb-confirm:disabled { opacity: 0.45; cursor: not-allowed; }
 
         /* Curve-grouped pool + viewable piles */
+        /* Color signature: dot area ∝ how represented each color is in the pile */
+        .color-sig { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; min-height: 22px; }
+        .color-sig .cs-dot { display: inline-block; border-radius: 50%; border: 1px solid rgba(0,0,0,0.4); box-shadow: 0 0 3px rgba(0,0,0,0.4); flex: none; }
+        .color-sig .cs-n { font-size: 0.66rem; color: #9ab; margin-right: 7px; }
         .curve-group { margin-bottom: 10px; }
         .curve-group .cg-head {
             font-size: 0.72rem; color: #8ad8d0; text-transform: uppercase; letter-spacing: 0.5px;
@@ -5807,6 +5811,24 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         // Group a set of cards into curve sections (by mana value), lands last. (Used for opponent / burned piles.)
+        // A pile's color signature: one dot per color present, sized by share —
+        // the biggest dot is their main color, and the size gap between dots
+        // tells you committed second color vs. light splash at a glance.
+        // Multicolor cards count one pip toward each of their colors.
+        function colorSignatureHTML(cards) {
+            const NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+            const counts = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+            cards.forEach(c => (c.colors || []).forEach(col => { if (counts[col] !== undefined) counts[col]++; }));
+            const entries = Object.entries(counts).filter(e => e[1] > 0).sort((a, b) => b[1] - a[1]);
+            if (!entries.length) return '';
+            const max = entries[0][1];
+            return `<div class="color-sig" title="Color spread of this pile (multicolor cards count for each of their colors)">` +
+                entries.map(([col, n]) => {
+                    const d = Math.round(9 + 11 * Math.sqrt(n / max));   // area ≈ proportional to count
+                    return `<span class="cs-dot color-${col}" style="width:${d}px;height:${d}px;" title="${NAMES[col]}: ${n}"></span><span class="cs-n">${n}</span>`;
+                }).join('') + `</div>`;
+        }
+
         // Grouped by COLOR IDENTITY (WUBRG → multi → colorless → lands): from an
         // opponent's face-up cards you're reading their lanes, not their curve.
         function curveGroupsHTML(cards) {
@@ -5819,7 +5841,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             });
             const sortChips = arr => arr.slice().sort((a, b) =>
                 (a.cmc || 0) - (b.cmc || 0) || a.name.localeCompare(b.name));   // within a color, curve order
-            let html = '';
+            let html = colorSignatureHTML(cards);
             [...groups.values()].sort((a, b) => a.order - b.order).forEach(g => {
                 html += `<div class="curve-group"><div class="cg-head">${g.label} · ${g.cards.length}</div>${sortChips(g.cards).map(c => poolChipHTML(c)).join('')}</div>`;
             });
