@@ -1545,21 +1545,15 @@
         .pack-board { display: none; }
         .pack-board.active { display: block; }
 
-        .pack-banner {
-            background: rgba(0,0,0,0.35);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 12px;
-            padding: 9px 18px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        .pack-banner h2 { font-size: 1.15rem; margin: 0; }
-        .pack-banner .pb-meta { color: #9aa; font-size: 0.9rem; display: flex; gap: 18px; flex-wrap: wrap; }
-        .pack-banner .pb-dir { color: #4ecdc4; font-weight: 600; }
-        .pack-banner .pb-spacer { margin-left: auto; display: flex; gap: 8px; }
+        /* Pack info rides in the app header — one strip, not two */
+        .hdr-pack { display: none; align-items: baseline; gap: 12px; flex-wrap: wrap; min-width: 0; }
+        .hdr-pack #packTitle { font-size: 0.92rem; font-weight: 700; color: #eef; white-space: nowrap; }
+        .pb-meta { color: #9aa; font-size: 0.76rem; display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+        .pb-dir { color: #4ecdc4; font-weight: 600; }
+        .hdr-pack-ctrls { display: none; align-items: center; gap: 8px; }
+        body.pack-active .hdr-pack { display: flex; }
+        body.pack-active .hdr-pack-ctrls { display: inline-flex; }
+        body.pack-active #cubeNameHeader { display: none; }   /* pack title carries the context */
 
         .booster-grid {
             display: grid;
@@ -1886,7 +1880,16 @@
                     <h1>🎴 Cube Draft</h1>
                     <span id="cubeNameHeader" style="color: #888; font-size: 0.78rem; margin-left: 8px;"></span>
                 </div>
+                <div class="hdr-pack" id="hdrPackInfo">
+                    <span id="packTitle">Pack 1, Pick 1</span>
+                    <span class="pb-meta" id="packMeta"></span>
+                </div>
                 <div class="room-info">
+                    <span class="hdr-pack-ctrls" id="hdrPackCtrls">
+                        <label class="elo-toggle" title="Show draft grades (A+ to F) instead of raw ELO — each card ranked by its ELO percentile within this cube"><input type="checkbox" id="eloToggle" onchange="toggleElo()"> Grades</label>
+                        <button class="small secondary" onclick="exportPackPool()" id="packExportBtn">📥 Export</button>
+                        <button class="small secondary" onclick="exitPackDraft()">Setup</button>
+                    </span>
                     <span class="room-code" id="roomCodeDisplay">------</span>
                     <button class="secondary small" onclick="copyRoomLink()">📋 Copy Link</button>
                     <button class="secondary small" onclick="resetDraft()" id="resetDraftBtn" style="display: none;">↺ Reset Draft</button>
@@ -2166,18 +2169,6 @@ Supports:
 
             <!-- Booster (Pack) Draft Board -->
             <div class="pack-board" id="packBoard">
-                <div class="pack-banner" id="packBanner">
-                    <div>
-                        <h2 id="packTitle">Pack 1, Pick 1</h2>
-                        <div class="pb-meta" id="packMeta"></div>
-                    </div>
-                    <div class="pb-spacer">
-                        <label class="elo-toggle" title="Show draft grades (A+ to F) instead of raw ELO — each card ranked by its ELO percentile within this cube"><input type="checkbox" id="eloToggle" onchange="toggleElo()"> Show grades</label>
-                        <button class="small secondary" onclick="exportPackPool()" id="packExportBtn">📥 Export Pool</button>
-                        <button class="small secondary" onclick="exitPackDraft()">Back to Setup</button>
-                    </div>
-                </div>
-
                 <div class="pack-cols">
                     <div class="pack-left">
                         <div class="mn-confirm-bar" id="mnConfirmBar" style="display:none;"></div>
@@ -5608,7 +5599,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             sideboardNames = new Set(); mvOverrides = new Map();
             document.getElementById('draftSetup').style.display = 'none';
             document.getElementById('draftBoard').classList.remove('active');
-            document.getElementById('packBoard').classList.add('active');
+            document.getElementById('packBoard').classList.add('active'); document.body.classList.add('pack-active');
             document.getElementById('packExportBtn').style.display = 'none';
             window.scrollTo({ top: 0, behavior: 'smooth' });
             renderPackDraft();
@@ -6023,7 +6014,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 }
                 podActive = false; podRef = null; podState = null; podSeat = null; podCardMap = {}; podLastPickable = false;
                 packDraft = null;
-                document.getElementById('packBoard').classList.remove('active');
+                document.getElementById('packBoard').classList.remove('active'); document.body.classList.remove('pack-active');
                 document.getElementById('draftSetup').style.display = 'block';
                 updateUI();
                 return;
@@ -6034,7 +6025,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 if (liveRef) liveRef.off();
                 liveActive = false; liveRef = null; liveState = null; liveSeat = null; liveCardMap = {};
                 packDraft = null;
-                document.getElementById('packBoard').classList.remove('active');
+                document.getElementById('packBoard').classList.remove('active'); document.body.classList.remove('pack-active');
                 document.getElementById('draftSetup').style.display = 'block';
                 updateUI();
                 return;
@@ -6043,7 +6034,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 if (!confirm('Leave this booster draft? Your picks will be lost.')) return;
             }
             packDraft = null;
-            document.getElementById('packBoard').classList.remove('active');
+            document.getElementById('packBoard').classList.remove('active'); document.body.classList.remove('pack-active');
             document.getElementById('draftSetup').style.display = 'block';
             updateUI();
         }
@@ -6105,7 +6096,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             mnStage = []; mnStageKey = ''; sideboardNames = new Set(); mvOverrides = new Map();
             document.getElementById('draftSetup').style.display = 'none';
             document.getElementById('draftBoard').classList.remove('active');
-            document.getElementById('packBoard').classList.add('active');
+            document.getElementById('packBoard').classList.add('active'); document.body.classList.add('pack-active');
             document.getElementById('packExportBtn').style.display = 'none';
             window.scrollTo({ top: 0, behavior: 'smooth' });
             renderPackDraft();
@@ -6300,7 +6291,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
             document.getElementById('draftSetup').style.display = 'none';
             document.getElementById('draftBoard').classList.remove('active');
-            document.getElementById('packBoard').classList.add('active');
+            document.getElementById('packBoard').classList.add('active'); document.body.classList.add('pack-active');
             document.getElementById('packExportBtn').style.display = 'none';
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -6693,7 +6684,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
 
             document.getElementById('draftSetup').style.display = 'none';
             document.getElementById('draftBoard').classList.remove('active');
-            document.getElementById('packBoard').classList.add('active');
+            document.getElementById('packBoard').classList.add('active'); document.body.classList.add('pack-active');
             document.getElementById('packExportBtn').style.display = 'none';
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
