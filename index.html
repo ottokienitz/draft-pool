@@ -2417,7 +2417,12 @@ Supports:
                 
                 if (urlRoom) {
                     document.getElementById('joinRoomInput').value = urlRoom.toUpperCase();
-                    joinRoom();
+                    const joinMode = (urlParams.get('join') || '').toLowerCase();
+                    if (joinMode === 'live' || joinMode === 'pod') {
+                        directJoinChallenge(urlRoom.toUpperCase(), joinMode);
+                    } else {
+                        joinRoom();
+                    }
                 }
             } catch (e) {
                 console.log('Cannot read URL params (sandboxed environment)');
@@ -2426,6 +2431,25 @@ Supports:
             updatePlayerInputs();
         });
         
+        // ---- Direct-join challenge links: skip every menu, land in the lobby.
+        //      The friend never touches setup — format, pool, and pack settings
+        //      all come from whatever the host configured.
+        async function directJoinChallenge(code, kind) {
+            if (!isSpectator && !playerName) {
+                const n = (window.prompt('Your name for the draft:', '') || '').trim();
+                if (n) {
+                    playerName = n;
+                    localStorage.setItem('roto-player-name', n);
+                    const inp = document.getElementById('playerName');
+                    if (inp) inp.value = n;
+                }
+            }
+            roomCode = code;
+            await connectToRoom(code);   // room listeners + presence, same as a normal join
+            if (kind === 'pod') goLivePod();
+            else goLiveMinneapolis();
+        }
+
         // Room Management
         function generateRoomCode() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -2700,6 +2724,19 @@ Supports:
             navigator.clipboard.writeText(window.location.href).then(() => {
                 showToast('Link copied!', 'success');
             });
+        }
+
+        function copyChallengeLink(kind) {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('room', roomCode);
+                url.searchParams.set('join', kind);
+                navigator.clipboard.writeText(url.toString()).then(() => {
+                    showToast('Challenge link copied — one click drops them into your lobby!', 'success');
+                });
+            } catch (e) {
+                showToast('Could not build the link — share room code ' + roomCode + ' instead', 'error');
+            }
         }
         
         // ---- Granular writers (replace the old whole-state saveToFirebase) ----
@@ -6575,7 +6612,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🌐 Live Minneapolis</h2>
                 <div class="lobby-seats">${seatCard(0, p0)}${seatCard(1, p1)}</div>
-                ${bothHere ? '' : `<div class="pc-sub">Room code: <strong>${roomCode}</strong> <button class="small secondary" onclick="copyRoomLink()" style="margin-left:8px;">📋 Copy invite link</button></div>`}
+                ${bothHere ? '' : `<div class="pc-sub">Room code: <strong>${roomCode}</strong> <button class="small secondary" onclick="copyChallengeLink('live')" style="margin-left:8px;">⚔️ Copy challenge link</button><br>One click takes them straight into this lobby — no setup on their end.</div>`}
                 ${actions}
                 <div style="margin-top:14px;"><button class="secondary" onclick="exitPackDraft()">Back to setup</button></div>
             </div>`;
@@ -7043,7 +7080,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('boosterGrid').classList.remove('single-row');
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🌐 Live Booster Pod</h2>
-                <div class="pc-sub">Room code: <strong>${roomCode}</strong> <button class="small secondary" onclick="copyRoomLink()" style="margin-left:8px;">📋 Copy invite link</button><br>Friends open the link (or join the room), pick Booster → Play live, and appear below. Empty seats become bots when the host starts.</div>
+                <div class="pc-sub">Room code: <strong>${roomCode}</strong> <button class="small secondary" onclick="copyChallengeLink('pod')" style="margin-left:8px;">⚔️ Copy challenge link</button><br>One click takes friends straight into this lobby — no setup on their end. Empty seats become bots when the host starts.</div>
                 <div class="pod-seats" style="margin:12px 0;">${roster}</div>
                 ${actions}
                 <div style="margin-top:14px;"><button class="secondary" onclick="exitPackDraft()">Back to setup</button></div>
