@@ -1614,16 +1614,16 @@
             padding: 16px;
         }
         .pool-panel h3 { margin-bottom: 12px; font-size: 1rem; }
-        .pool-curve { display: flex; gap: 10px; align-items: flex-end; height: 88px; margin-bottom: 14px; }
+        .pool-curve { display: flex; gap: 6px; align-items: flex-end; height: 38px; margin: 10px 0 2px; opacity: 0.9; }
         .pool-curve .pc-bar { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
-        .pool-curve .pc-count { font-size: 0.66rem; color: #cdd; line-height: 1; margin-bottom: 2px; min-height: 0.7em; }
+        .pool-curve .pc-count { font-size: 0.58rem; color: #9ab; line-height: 1; margin-bottom: 1px; min-height: 0.62em; }
         .pool-curve .pc-fill { width: 100%; background: linear-gradient(180deg, #4ecdc4, #44a08d); border-radius: 3px 3px 0 0; transition: height 0.18s ease; }
         .pool-curve .pc-fill-stack { width: 100%; display: flex; flex-direction: column-reverse; overflow: hidden; border-radius: 3px 3px 0 0; transition: height 0.18s ease; }
         .pool-curve .pc-fill-stack.empty { background: rgba(255,255,255,0.06); }
         .pool-curve .pc-seg { width: 100%; min-height: 1px; }
         .pool-curve .pc-seg.color-B { background: #2a2a33; }
         .pool-curve .pc-fill.empty { background: rgba(255,255,255,0.06); }
-        .pool-curve .pc-label { font-size: 0.65rem; color: #889; margin-top: 4px; }
+        .pool-curve .pc-label { font-size: 0.58rem; color: #778; margin-top: 2px; }
         .pool-mini { font-size: 0.8rem; }
         .pm-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 0.8rem; }
         .pm-row .color-indicator { position: static; }
@@ -1697,11 +1697,34 @@
             cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.45); font-size: 0.9rem;
         }
         .chat-reopen .chat-unread { margin-left: 4px; }
+        .lobby-seats { display: flex; gap: 12px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
+        .lobby-seat { min-width: 190px; padding: 12px 16px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); text-align: left; }
+        .lobby-seat.joined { border-color: rgba(78,205,110,0.55); background: rgba(78,205,110,0.08); }
+        .lobby-seat .ls-role { font-size: 0.68rem; color: #9ab; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+        .lobby-seat .ls-name { font-weight: 700; font-size: 0.95rem; }
+        .lobby-seat .ls-status { font-size: 0.74rem; margin-top: 3px; color: #9ab; }
+        .lobby-seat.joined .ls-status { color: #7fe09a; }
+        .lobby-ready { display: inline-block; margin: 6px 0 2px; padding: 6px 14px; border-radius: 10px; font-weight: 700; font-size: 0.9rem; color: #06231f; background: linear-gradient(135deg, #4ecdc4, #44a08d); animation: lobbyPulse 1.6s ease-in-out infinite; }
+        @keyframes lobbyPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(78,205,196,0.5); } 50% { box-shadow: 0 0 0 9px rgba(78,205,196,0); } }
         .chat-reopen, .reader-reopen { cursor: grab; touch-action: none; }
         .chat-reopen:active, .reader-reopen:active { cursor: grabbing; }
         /* Right column (card reader + table) */
-        .pack-side { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+        /* The Table rides shotgun: sticky beside the main column, scrolling
+           internally when the opponent's piles outgrow the viewport. */
+        .pack-side {
+            display: flex; flex-direction: column; gap: 16px; min-height: 0;
+            position: sticky; top: 14px; align-self: start;
+            max-height: calc(100vh - 28px); overflow-y: auto;
+            overscroll-behavior: contain; scrollbar-width: thin;
+            scrollbar-color: rgba(78,205,196,0.35) transparent;
+            border-radius: 12px;
+        }
+        .pack-side::-webkit-scrollbar { width: 7px; }
+        .pack-side::-webkit-scrollbar-thumb { background: rgba(78,205,196,0.3); border-radius: 4px; }
+        .pack-side::-webkit-scrollbar-thumb:hover { background: rgba(78,205,196,0.55); }
+        .pack-side::-webkit-scrollbar-track { background: transparent; }
         .pack-side .pool-panel:last-child { flex: 1 1 auto; min-height: 0; }
+        @media (max-width: 900px) { .pack-side { position: static; max-height: none; overflow: visible; } }
         .card-reader-empty { color: #667; font-size: 0.82rem; padding: 24px 8px; text-align: center; }
         #cardReader .reader-img { width: 100%; border-radius: 8px; display: block; margin-bottom: 8px; }
         #cardReader .reader-name { font-weight: 600; font-size: 0.92rem; }
@@ -1756,7 +1779,7 @@
             border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.8rem; cursor: pointer;
         }
         .pool-columns { display: flex; gap: 10px; align-items: stretch; overflow-x: auto; padding-bottom: 6px; }
-        .pool-col { flex: 1 1 0; min-width: 108px; background: rgba(255,255,255,0.025); border-radius: 8px; padding: 8px 8px 10px; min-height: 64px; }
+        .pool-col { flex: 1 1 0; min-width: 158px; background: rgba(255,255,255,0.025); border-radius: 8px; padding: 8px 8px 10px; min-height: 64px; }
         .pool-col .pcg-head {
             font-size: 0.72rem; color: #8ad8d0; text-transform: uppercase; letter-spacing: 0.5px;
             border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 4px; margin-bottom: 6px;
@@ -2154,11 +2177,11 @@ Supports:
                                         <option value="type">Sort: Type</option>
                                     </select>
                                 </div>
-                                <div class="pool-curve" id="poolCurve"></div>
                                 <div class="deck-stats" id="deckStats"></div>
                                 <div class="pool-mini" id="poolMini">
                                     <p class="text-muted">No picks yet</p>
                                 </div>
+                                <div class="pool-curve" id="poolCurve"></div>
                                 <div class="sideboard-area" id="sideboardArea" style="display:none;">
                                     <div class="sideboard-head">Sideboard (<span id="sbCount">0</span>) <span class="text-muted" style="font-weight:400;">— cut cards you won't play</span></div>
                                     <div class="sideboard-body" id="sideboardBody"></div>
@@ -2176,7 +2199,7 @@ Supports:
             </div>
         </div>
         <div class="card-tooltip" id="cardPreview">
-            <div class="cr-header" id="crHeader"><span id="crTitle">🔍 Card</span><span class="cr-close" title="Close" onclick="closeCardReader()">✕</span></div>
+            <div class="cr-header" id="crHeader"><span id="crTitle">🔍 Card</span><span style="margin-left:auto; display:flex; gap:8px;"><span class="cr-flip" id="crFlip" title="Flip to the other face" onclick="event.stopPropagation(); flipCardReader()" style="display:none; cursor:pointer;">🔄</span><span class="cr-close" title="Close" onclick="closeCardReader()">✕</span></span></div>
             <img src="" alt="Card Preview" id="previewImage">
             <div class="card-details" id="cardDetails" style="display:none;">
                 <div class="card-type" id="cardType"></div>
@@ -2472,7 +2495,10 @@ Supports:
                 cmc: c.cmc || 0, elo: c.elo ?? null, oracle_text: c.oracle_text || '',
                 flavor_text: c.flavor_text || '', rarity: c.rarity || '',
                 image_small: c.image_small || '', image_normal: c.image_normal || '',
-                tags: c.tags || [], arena: (c.arena === undefined ? null : c.arena)
+                tags: c.tags || [], arena: (c.arena === undefined ? null : c.arena),
+                ...(c.back_image ? { back_image: c.back_image } : {}),
+                ...(c.back_name ? { back_name: c.back_name } : {}),
+                ...(c.back_oracle ? { back_oracle: c.back_oracle } : {})
             };
         }
 
@@ -2543,7 +2569,10 @@ Supports:
                             oracle_text: card.oracle_text,
                             flavor_text: card.flavor_text,
                             type_line: card.type_line,
-                            rarity: card.rarity
+                            rarity: card.rarity,
+                            back_image: card.back_image || '',
+                            back_name: card.back_name || '',
+                            back_oracle: card.back_oracle || ''
                         };
                     }
                 });
@@ -2927,6 +2956,8 @@ Supports:
                         rarity: card.rarity || card.details?.rarity || '',
                         image_small: card.image_small || card.details?.image_small || '',
                         image_normal: card.image_normal || card.details?.image_normal || '',
+                        back_image: card.image_flip || card.details?.image_flip || '',
+                        back_name: '', back_oracle: '',
                         tags: card.tags || [],
                         picked: false,
                         pickedBy: null
@@ -3022,6 +3053,9 @@ Supports:
                     image_normal: card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.normal || '',
                     tags: [],
                     arena: (Array.isArray(card.games) && card.games.includes('arena')) ? true : null,   // per-PRINTING field — absence proves nothing
+                    back_image: card.card_faces?.[1]?.image_uris?.normal || '',
+                    back_name: card.card_faces?.[1]?.name || '',
+                    back_oracle: card.card_faces?.[1]?.oracle_text || '',
                     picked: false,
                     pickedBy: null
                 }));
@@ -3828,6 +3862,38 @@ Supports:
         let lastPreviewCard = null;
         let cardReaderClosed = false;
 
+        // Double-faced cards: the reader keeps front/back for the current card
+        let readerFaces = null;   // { frontName, frontUrl, frontOracle, backName, backUrl, backOracle }
+        let readerShowingBack = false;
+
+        function setReaderFaces(cardName, url, oracle, source) {
+            const backUrl = (source && source.back_image) || '';
+            readerFaces = backUrl ? {
+                frontName: cardName, frontUrl: url, frontOracle: oracle || '',
+                backName: (source.back_name || cardName), backUrl,
+                backOracle: (source.back_oracle || '')
+            } : null;
+            readerShowingBack = false;
+            const flipBtn = document.getElementById('crFlip');
+            if (flipBtn) flipBtn.style.display = readerFaces ? 'inline' : 'none';
+        }
+
+        function flipCardReader() {
+            if (!readerFaces) return;
+            readerShowingBack = !readerShowingBack;
+            const f = readerShowingBack
+                ? { name: readerFaces.backName, url: readerFaces.backUrl, oracle: readerFaces.backOracle }
+                : { name: readerFaces.frontName, url: readerFaces.frontUrl, oracle: readerFaces.frontOracle };
+            const img = document.getElementById('previewImage');
+            const title = document.getElementById('crTitle');
+            if (title) title.textContent = f.name;
+            if (f.url) img.src = f.url;
+            const ot = document.getElementById('oracleText');
+            if (ot && document.getElementById('cardDetails').style.display !== 'none') {
+                ot.textContent = f.oracle || '';
+            }
+        }
+
         async function showCardPreview(cardName) {
             lastPreviewCard = cardName;
             if (cardReaderClosed) return;   // user dismissed the reader; wait for reopen
@@ -3841,9 +3907,14 @@ Supports:
             // Use an image we already have (cube / live room / cache) for an instant, flicker-free show
             const cube = (state.cube || []).find(c => c.name === cardName);
             const lc = (typeof liveCardMap !== 'undefined' && liveCardMap[cardName]) ? liveCardMap[cardName] : null;
+            const pc = (typeof podCardMap !== 'undefined' && podCardMap[cardName]) ? podCardMap[cardName] : null;
+            const source = cardDataCache[cardName] || cube || lc || pc || null;
             let url = (cardDataCache[cardName] && cardDataCache[cardName].image)
                 || (cube && (cube.image_normal || cube.image_small))
-                || (lc && (lc.image_normal || lc.image_small)) || '';
+                || (lc && (lc.image_normal || lc.image_small))
+                || (pc && (pc.image_normal || pc.image_small)) || '';
+
+            setReaderFaces(cardName, url, source && source.oracle_text, source);
 
             if (url) {
                 if (img.getAttribute('src') !== url) img.src = url;   // avoid reloading the same image
@@ -3864,8 +3935,12 @@ Supports:
                         cardDataCache[cardName] = {
                             image: imageUrl, type_line: data.type_line,
                             oracle_text: data.oracle_text || data.card_faces?.[0]?.oracle_text || '',
-                            flavor_text: data.flavor_text || '', rarity: data.rarity
+                            flavor_text: data.flavor_text || '', rarity: data.rarity,
+                            back_image: data.card_faces?.[1]?.image_uris?.normal || '',
+                            back_name: data.card_faces?.[1]?.name || '',
+                            back_oracle: data.card_faces?.[1]?.oracle_text || ''
                         };
+                        setReaderFaces(cardName, imageUrl, cardDataCache[cardName].oracle_text, cardDataCache[cardName]);
                         img.src = imageUrl;
                         preview.classList.add('active');
                     }
@@ -6220,7 +6295,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
                     cardList.push({
                         name: c.name, colors: c.colors || [], cmc: c.cmc || 0,
                         elo: (c.elo ?? null), type_line: c.type_line || '',
-                        image_normal: c.image_normal || '', image_small: c.image_small || ''
+                        image_normal: c.image_normal || '', image_small: c.image_small || '',
+                        ...(c.back_image ? { back_image: c.back_image, back_name: c.back_name || '', back_oracle: c.back_oracle || '' } : {})
                     });
                 });
             }
@@ -6390,26 +6466,47 @@ Respond with ONLY this JSON (no markdown, no extra text):
             });
         }
 
+        let mnLobbyLastJoined = 0;   // seat-count watermark → toast + chime when the 2nd player lands
         function renderLiveLobby() {
             document.getElementById('mnConfirmBar').style.display = 'none';
             const seats = (liveState && liveState.seats) || {};
-            const p0 = (seats['0'] && seats['0'].name) || '—';
-            const p1 = (seats['1'] && seats['1'].name) || 'waiting…';
+            const p0 = seats['0'] && seats['0'].name;
+            const p1 = seats['1'] && seats['1'].name;
             const isHost = liveSeat === 0;
             const haveCube = !!(state.cube && state.cube.length);
             const bothHere = !!(seats['0'] && seats['1']);
+            const joinedCount = (seats['0'] ? 1 : 0) + (seats['1'] ? 1 : 0);
+
+            // Unmissable moment: the second player just arrived
+            if (joinedCount === 2 && mnLobbyLastJoined < 2) {
+                showToast('Both players are in — ready to draft! 🎉', 'success');
+                playTurnSound();
+            }
+            mnLobbyLastJoined = joinedCount;
 
             document.getElementById('packTitle').textContent = 'Minneapolis (Live) — Lobby';
             document.getElementById('packMeta').innerHTML = `<span>${liveSeat === null ? 'Spectator (room full)' : 'You are Player ' + (liveSeat + 1)}</span>`;
             document.getElementById('packExportBtn').style.display = 'none';
 
+            const seatCard = (idx, name) => {
+                const joined = !!name;
+                const you = liveSeat === idx;
+                return `<div class="lobby-seat ${joined ? 'joined' : ''}">
+                    <div class="ls-role">Player ${idx + 1}${idx === 0 ? ' · host' : ''}</div>
+                    <div class="ls-name">${joined ? presenceDot(name) + escapeHtml(name) + (you ? ' (you)' : '') : '—'}</div>
+                    <div class="ls-status">${joined ? '✓ joined & live' : 'waiting to join…'}</div>
+                </div>`;
+            };
+
             let actions = '';
             if (isHost) {
                 if (!haveCube) actions = `<div class="pc-sub">Load a cube back in setup to host this draft.</div>`;
-                else if (!bothHere) actions = `<div class="pc-sub">Waiting for your friend to join room <strong>${roomCode}</strong>…</div>`;
-                else actions = `<button onclick="hostStartLive()">Start the draft</button>` + (fixedPoolOn ? `<div class="pc-sub" style="margin-top:8px;">🔁 Fixed pool on — after each draft you can run the remaining cards back for another round.</div>` : '');
+                else if (!bothHere) actions = `<div class="pc-sub">Share room code <strong>${roomCode}</strong> — your friend joins the room, then picks Minneapolis → Play live.</div>`;
+                else actions = `<div class="lobby-ready">✅ Both players in</div><br><button onclick="hostStartLive()">Start the draft</button>` + (fixedPoolOn ? `<div class="pc-sub" style="margin-top:8px;">🔁 Fixed pool on — after each draft you can run the remaining cards back for another round.</div>` : '');
             } else if (liveSeat === 1) {
-                actions = `<div class="pc-sub">Waiting for ${escapeHtml(p0)} to start the draft…</div>`;
+                actions = bothHere
+                    ? `<div class="lobby-ready">✅ Both players in</div><div class="pc-sub" style="margin-top:6px;">Waiting for ${escapeHtml(p0 || 'the host')} to press start…</div>`
+                    : `<div class="pc-sub">Waiting for the host…</div>`;
             } else {
                 actions = `<div class="pc-sub">This room's live draft already has two players.</div>`;
             }
@@ -6417,8 +6514,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('boosterGrid').classList.remove('single-row');
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🌐 Live Minneapolis</h2>
-                <div class="pc-sub">Player 1: <strong>${escapeHtml(p0)}</strong> &nbsp;·&nbsp; Player 2: <strong>${escapeHtml(p1)}</strong></div>
-                <div class="pc-sub">Room code: <strong>${roomCode}</strong> — share it with your friend (they pick Minneapolis → Play live in the same room).</div>
+                <div class="lobby-seats">${seatCard(0, p0)}${seatCard(1, p1)}</div>
+                ${bothHere ? '' : `<div class="pc-sub">Room code: <strong>${roomCode}</strong></div>`}
                 ${actions}
                 <div style="margin-top:14px;"><button class="secondary" onclick="exitPackDraft()">Back to setup</button></div>
             </div>`;
@@ -6532,7 +6629,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             arr.forEach(c => {
                 if (c && c.name) {
                     podCardMap[c.name] = c;
-                    if (!cardDataCache[c.name]) cardDataCache[c.name] = { image: c.image_normal || c.image_small || '', type_line: c.type_line || '' };
+                    if (!cardDataCache[c.name]) cardDataCache[c.name] = { image: c.image_normal || c.image_small || '', type_line: c.type_line || '', back_image: c.back_image || '', back_name: c.back_name || '', back_oracle: c.back_oracle || '' };
                 }
             });
         }
@@ -6580,7 +6677,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
                     name: c.name, colors: c.colors || [], cmc: c.cmc || 0,
                     elo: (c.elo ?? null), type_line: c.type_line || '',
                     image_normal: c.image_normal || '', image_small: c.image_small || '',
-                    arena: (c.arena === undefined ? null : c.arena)
+                    arena: (c.arena === undefined ? null : c.arena),
+                    ...(c.back_image ? { back_image: c.back_image, back_name: c.back_name || '', back_oracle: c.back_oracle || '' } : {})
                 });
             });
 
