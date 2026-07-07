@@ -5913,7 +5913,11 @@ Respond with ONLY this JSON (no markdown, no extra text):
         // Image-based deck card (overlapping stacks in the deck columns).
         function deckCardHTML(c, action, movable = false) {
             const safe = c.name.replace(/'/g, "\\'");
-            const img = c.image_small || c.image_normal || '';
+            // Full-res art: pool cards can stretch to ~400px in 3-column color
+            // sort (and retina doubles the pixel demand), so the 146px small
+            // image blurs. `normal` (488px) covers every case; it lazy-loads
+            // per pick and is usually cached already from the hover preview.
+            const img = c.image_normal || c.image_small || '';
             const elo = (showElo && c.elo != null) ? `<span class="dc-elo" style="color:${gradeColor(c.elo)}">${eloBadge(c.elo)}</span>` : '';
             const btn = action === 'demote'
                 ? `<span class="dc-move" title="Move to sideboard" onclick="event.stopPropagation(); togglePoolCardSideboard('${safe}')">\u2913</span>`
@@ -5931,7 +5935,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
                     mvtag = `<span class="dc-mvtag" title="Moved from MV ${naturalMv(c)} — click to send home" onclick="event.stopPropagation(); clearCardMv('${safe}')">${naturalMv(c)}→${mv}</span>`;
                 }
             }
-            const inner = img ? `<img src="${img}" alt="${c.name}" loading="lazy">` : `<div class="dc-noimg">${c.name}</div>`;
+            const inner = img ? `<img src="${img}" alt="${c.name}" loading="lazy" decoding="async">` : `<div class="dc-noimg">${c.name}</div>`;
             return `<div class="deck-card"${dragAttrs} onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">${inner}${elo}${btn}${nudges}${mvtag}</div>`;
         }
         function poolColumnsHTML(cards, catFn, action) {
