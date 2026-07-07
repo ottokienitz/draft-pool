@@ -1619,7 +1619,8 @@
             padding: 16px;
         }
         .pool-panel h3 { margin-bottom: 12px; font-size: 1rem; }
-        .pool-curve { display: flex; gap: 6px; align-items: flex-end; height: 38px; margin: 10px 0 2px; opacity: 0.9; }
+        .pool-curve { display: flex; gap: 8px; align-items: flex-end; height: 46px; margin: 8px 0 2px; opacity: 0.9; }
+        .pool-curve .pc-bar { padding: 0 6px; }
         .pool-curve .pc-bar { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
         .pool-curve .pc-count { font-size: 0.58rem; color: #9ab; line-height: 1; margin-bottom: 1px; min-height: 0.62em; }
         .pool-curve .pc-fill { width: 100%; background: linear-gradient(180deg, #4ecdc4, #44a08d); border-radius: 3px 3px 0 0; transition: height 0.18s ease; }
@@ -1627,6 +1628,7 @@
         .pool-curve .pc-fill-stack.empty { background: rgba(255,255,255,0.06); }
         .pool-curve .pc-seg { width: 100%; min-height: 1px; }
         .pool-curve .pc-seg.color-B { background: #2a2a33; }
+        .pool-curve .pc-seg.color-L { background: #8b7355; }
         .pool-curve .pc-fill.empty { background: rgba(255,255,255,0.06); }
         .pool-curve .pc-label { font-size: 0.58rem; color: #778; margin-top: 2px; }
         .pool-mini { font-size: 0.8rem; }
@@ -1791,8 +1793,8 @@
             margin-left: auto; padding: 6px 10px; background: rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 0.8rem; cursor: pointer;
         }
-        .pool-columns { display: flex; gap: 10px; align-items: stretch; overflow-x: auto; padding-bottom: 6px; }
-        .pool-col { flex: 1 1 0; min-width: 158px; background: rgba(255,255,255,0.025); border-radius: 8px; padding: 8px 8px 10px; min-height: 64px; }
+        .pool-columns { display: flex; gap: 8px; align-items: stretch; padding-bottom: 6px; }
+        .pool-col { flex: 1 1 0; min-width: 0; background: rgba(255,255,255,0.025); border-radius: 8px; padding: 8px 6px 10px; min-height: 64px; }
         .pool-col .pcg-head {
             font-size: 0.72rem; color: #8ad8d0; text-transform: uppercase; letter-spacing: 0.5px;
             border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 4px; margin-bottom: 6px;
@@ -5793,14 +5795,13 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const buckets = Array.from({ length: 8 }, () => ({}));
             const totals = [0, 0, 0, 0, 0, 0, 0, 0];
             deck.forEach(c => {
-                if ((c.type_line || '').toLowerCase().includes('land')) return;
                 const cmc = effMv(c);   // respects curve-shaping overrides
                 const cls = getColorClass(c.colors, c.type_line);
                 buckets[cmc][cls] = (buckets[cmc][cls] || 0) + 1;
                 totals[cmc]++;
             });
             const maxC = Math.max(1, ...totals);
-            const H = 64;
+            const H = 26;   // must fit inside .pool-curve height with count + label
             const segOrder = ['color-W', 'color-U', 'color-B', 'color-R', 'color-G', 'color-M', 'color-C', 'color-L'];
 
             // Small, unobtrusive deck-stats line (color is already shown by the histogram + color sort)
