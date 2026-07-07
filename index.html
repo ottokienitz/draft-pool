@@ -1600,6 +1600,11 @@
             background: rgba(0,0,0,0.75); color: #f0ad4e;
             font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 5px;
         }
+        .booster-card .bc-dfc {
+            position: absolute; top: 5px; left: 5px;
+            background: rgba(0,0,0,0.75); color: #9ad7ff;
+            font-size: 0.78rem; font-weight: 700; padding: 1px 6px; border-radius: 5px;
+        }
         .booster-card.no-img { display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; }
         .booster-card.no-img .bc-fallback { font-size: 0.8rem; color: #ccd; }
 
@@ -1697,6 +1702,8 @@
             cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.45); font-size: 0.9rem;
         }
         .chat-reopen .chat-unread { margin-left: 4px; }
+        .chat-unread { animation: unreadPulse 1.5s ease-in-out infinite; }
+        @keyframes unreadPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.22); } }
         .lobby-seats { display: flex; gap: 12px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
         .lobby-seat { min-width: 190px; padding: 12px 16px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); text-align: left; }
         .lobby-seat.joined { border-color: rgba(78,205,110,0.55); background: rgba(78,205,110,0.08); }
@@ -1772,6 +1779,12 @@
         }
         .deck-card.dragging { opacity: 0.45; }
         .pool-col.drag-over { outline: 2px dashed #4ecdc4; outline-offset: -2px; background: rgba(78,205,196,0.08); }
+        body.pool-dragging .sideboard-area { display: block !important; }
+        body.pool-dragging .sideboard-area .sideboard-body:empty::after {
+            content: 'Drop here to sideboard'; display: block; padding: 18px 10px; text-align: center;
+            color: #9ab; font-size: 0.8rem; border: 2px dashed rgba(255,255,255,0.18); border-radius: 10px;
+        }
+        .sideboard-area.drag-over { outline: 2px dashed #f0ad4e; outline-offset: -2px; background: rgba(240,173,78,0.06); border-radius: 10px; }
         .pool-dock-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
         .pool-dock-head h3 { margin: 0; }
         .pool-sort {
@@ -2182,7 +2195,7 @@ Supports:
                                     <p class="text-muted">No picks yet</p>
                                 </div>
                                 <div class="pool-curve" id="poolCurve"></div>
-                                <div class="sideboard-area" id="sideboardArea" style="display:none;">
+                                <div class="sideboard-area" id="sideboardArea" style="display:none;" ondragover="sbAreaDragOver(event)" ondragleave="sbAreaDragLeave(event)" ondrop="sbAreaDrop(event)">
                                     <div class="sideboard-head">Sideboard (<span id="sbCount">0</span>) <span class="text-muted" style="font-weight:400;">— cut cards you won't play</span></div>
                                     <div class="sideboard-body" id="sideboardBody"></div>
                                 </div>
@@ -4400,11 +4413,29 @@ Supports:
             pill.addEventListener('pointercancel', () => { dragging = false; });
         }
 
+        // Enter confirms a staged pick (unless you're typing somewhere)
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Enter') return;
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            const bar = document.getElementById('mnConfirmBar');
+            if (bar && bar.style.display !== 'none' && mnStage.length > 0) {
+                e.preventDefault();
+                mnConfirm();
+            }
+        });
+
         function initFloatingWindows() {
             initChatDrag();
             initCardReader();
             makePillDraggable(document.getElementById('chatReopen'), 'rotoChatPillPos', showChat);
             makePillDraggable(document.getElementById('readerReopen'), 'rotoReaderPillPos', reopenCardReader);
+            // Remember how you like to see your pool
+            try {
+                const savedSort = localStorage.getItem('rotoPoolSort');
+                const sel = document.getElementById('poolSort');
+                if (savedSort && sel && [...sel.options].some(o => o.value === savedSort)) sel.value = savedSort;
+            } catch (e) {}
         }
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initFloatingWindows);
         else initFloatingWindows();
@@ -5273,9 +5304,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
                     : `${elo}<div class="bc-fallback">${card.name}</div>`;
                 const tick = selected ? '<div class="mn-tick">✓</div>' : '';
                 const burnMark = willBurn ? '<div class="mn-burnmark">🔥 burn</div>' : '';
+                const dfc = card.back_image ? `<span class="bc-dfc" title="Double-faced — flip it with 🔄 in the card reader">⟳</span>` : '';
                 return `<div class="${cls}" onclick="mnToggleSelect('${safe}')"
                      onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
-                     ${inner}${tick}${burnMark}</div>`;
+                     ${inner}${tick}${burnMark}${dfc}</div>`;
             }).join('');
 
             const bar = document.getElementById('mnConfirmBar');
@@ -5590,9 +5622,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
             const img = card.image_normal || card.image_small || '';
             const elo = (showElo && card.elo != null) ? `<div class="bc-elo" style="color:${gradeColor(card.elo)}">${eloBadge(card.elo)}</div>` : '';
             if (img) {
+                const dfc = card.back_image ? `<span class="bc-dfc" title="Double-faced — flip it with 🔄 in the card reader">⟳</span>` : '';
                 return `<div class="booster-card" onclick="${handler}('${safe}')"
                      onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
-                     <img src="${img}" alt="${card.name}" loading="lazy">${elo}</div>`;
+                     <img src="${img}" alt="${card.name}" loading="lazy">${elo}${dfc}</div>`;
             }
             return `<div class="booster-card no-img" onclick="${handler}('${safe}')"
                  onmouseenter="showCardPreview('${safe}')" onmouseleave="hideCardPreview()">
@@ -5650,8 +5683,13 @@ Respond with ONLY this JSON (no markdown, no extra text):
             poolDragName = name;
             try { ev.dataTransfer.setData('text/plain', name); ev.dataTransfer.effectAllowed = 'move'; } catch (e) {}
             ev.currentTarget.classList.add('dragging');
+            document.body.classList.add('pool-dragging');   // reveals the sideboard drop zone
         }
-        function poolDragEnd(ev) { ev.currentTarget.classList.remove('dragging'); poolDragName = null; }
+        function poolDragEnd(ev) {
+            ev.currentTarget.classList.remove('dragging');
+            document.body.classList.remove('pool-dragging');
+            poolDragName = null;
+        }
         // The whole column ROW is the drop surface; the target MV column is
         // resolved from the cursor's X alone. Empty columns, short columns,
         // even the gaps between columns — all land where you'd expect.
@@ -5682,7 +5720,25 @@ Respond with ONLY this JSON (no markdown, no extra text):
             ev.currentTarget.querySelectorAll(':scope > .pool-col').forEach(c => c.classList.remove('drag-over'));
             let name = poolDragName;
             try { name = ev.dataTransfer.getData('text/plain') || name; } catch (e) {}
-            if (name && col && col.dataset.mv !== undefined) setCardMv(name, parseInt(col.dataset.mv));
+            if (!name) return;
+            // Dropping across the deck/sideboard boundary moves the card there too
+            const inSideboard = !!ev.currentTarget.closest('#sideboardBody');
+            if (inSideboard && !sideboardNames.has(name)) sideboardNames.add(name);
+            else if (!inSideboard && sideboardNames.has(name)) sideboardNames.delete(name);
+            if (col && col.dataset.mv !== undefined) setCardMv(name, parseInt(col.dataset.mv));
+            else renderPoolPanel(lastPoolCards);
+        }
+        // The sideboard shell itself catches drops when it has no columns yet
+        function sbAreaDragOver(ev) { ev.preventDefault(); try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {} ev.currentTarget.classList.add('drag-over'); }
+        function sbAreaDragLeave(ev) { if (!ev.currentTarget.contains(ev.relatedTarget)) ev.currentTarget.classList.remove('drag-over'); }
+        function sbAreaDrop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.remove('drag-over');
+            let name = poolDragName;
+            try { name = ev.dataTransfer.getData('text/plain') || name; } catch (e) {}
+            if (!name || sideboardNames.has(name)) return;
+            sideboardNames.add(name);
+            renderPoolPanel(lastPoolCards);
         }
 
         // A single card "chip". `action` ('demote' | 'promote') adds a move button.
@@ -5782,7 +5838,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 }
             }
         }
-        function onPoolSortChange() { renderPoolPanel(lastPoolCards); }
+        function onPoolSortChange() {
+            try { localStorage.setItem('rotoPoolSort', document.getElementById('poolSort').value); } catch (e) {}
+            renderPoolPanel(lastPoolCards);
+        }
 
         // Category functions for the columnar pool views
         function cmcCategory(c) {
@@ -6433,9 +6492,10 @@ Respond with ONLY this JSON (no markdown, no extra text):
             } else {
                 document.getElementById('mnConfirmBar').style.display = 'none';
                 grid.classList.remove('single-row');
+                const oppOffline = Object.keys(presenceData || {}).length > 0 && !onlineNames().has((oppName() || '').toLowerCase());
                 grid.innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
-                    <h2>⏳ Waiting for ${escapeHtml(oppName())}</h2>
-                    <div class="pc-sub">They're still picking this round. Hang tight — or say hi in the chat.</div></div>`;
+                    <h2>⏳ Waiting for ${escapeHtml(oppName())}${oppOffline ? ' 💤' : ''}</h2>
+                    <div class="pc-sub">${oppOffline ? 'They look offline right now — the draft picks up the moment they\u2019re back.' : 'They\u2019re still picking this round. Hang tight — or say hi in the chat.'}</div></div>`;
             }
 
             // Lightweight "your turn" nudge
@@ -6515,7 +6575,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🌐 Live Minneapolis</h2>
                 <div class="lobby-seats">${seatCard(0, p0)}${seatCard(1, p1)}</div>
-                ${bothHere ? '' : `<div class="pc-sub">Room code: <strong>${roomCode}</strong></div>`}
+                ${bothHere ? '' : `<div class="pc-sub">Room code: <strong>${roomCode}</strong> <button class="small secondary" onclick="copyRoomLink()" style="margin-left:8px;">📋 Copy invite link</button></div>`}
                 ${actions}
                 <div style="margin-top:14px;"><button class="secondary" onclick="exitPackDraft()">Back to setup</button></div>
             </div>`;
@@ -6881,7 +6941,9 @@ Respond with ONLY this JSON (no markdown, no extra text):
                     const stillPicking = v.seatInfo.filter(si => !si.bot && !si.finishedRound).map(si => escapeHtml(si.name));
                     who = stillPicking.length ? `Waiting for ${stillPicking.join(', ')} to finish Pack ${r + 1}` : 'Opening the next pack…';
                 } else if (me.blocker !== null) {
-                    who = `Your next pack is stuck behind ${escapeHtml((su.seatNames || [])[me.blocker] || 'a neighbor')}`;
+                    const bName = (su.seatNames || [])[me.blocker] || 'a neighbor';
+                    const bOffline = Object.keys(presenceData || {}).length > 0 && !onlineNames().has(bName.toLowerCase());
+                    who = `Your next pack is stuck behind ${escapeHtml(bName)}${bOffline ? ' 💤 (offline)' : ''}`;
                 } else {
                     who = 'Waiting for your next pack…';
                 }
@@ -6981,7 +7043,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             document.getElementById('boosterGrid').classList.remove('single-row');
             document.getElementById('boosterGrid').innerHTML = `<div class="pack-complete" style="grid-column:1/-1;">
                 <h2>🌐 Live Booster Pod</h2>
-                <div class="pc-sub">Room code: <strong>${roomCode}</strong> — share it. Friends join the room, pick Booster → Play live, and appear below. Empty seats become bots when the host starts.</div>
+                <div class="pc-sub">Room code: <strong>${roomCode}</strong> <button class="small secondary" onclick="copyRoomLink()" style="margin-left:8px;">📋 Copy invite link</button><br>Friends open the link (or join the room), pick Booster → Play live, and appear below. Empty seats become bots when the host starts.</div>
                 <div class="pod-seats" style="margin:12px 0;">${roster}</div>
                 ${actions}
                 <div style="margin-top:14px;"><button class="secondary" onclick="exitPackDraft()">Back to setup</button></div>
