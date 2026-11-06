@@ -1571,10 +1571,22 @@
         /* Fullscreen: the reclaimed browser chrome goes into card size, not margins.
            (Chrome/Firefox use :fullscreen; Safari needs the -webkit- form — the
            selectors must stay in separate rules or one unknown selector kills both.) */
-        :fullscreen .booster-grid { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); }
-        :fullscreen .booster-grid.single-row .booster-card { max-width: 285px; }
-        :-webkit-full-screen .booster-grid { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); }
-        :-webkit-full-screen .booster-grid.single-row .booster-card { max-width: 285px; }
+        :fullscreen .booster-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+        :fullscreen .booster-grid.single-row .booster-card { max-width: 255px; }
+        :-webkit-full-screen .booster-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+        :-webkit-full-screen .booster-grid.single-row .booster-card { max-width: 255px; }
+
+        /* …and the deck builder grows WITH the picks: fullscreen hands its
+           horizontal slack (slimmer Table sidebar, tighter gutters) to the
+           pool columns, so both zones scale in proportion. */
+        :fullscreen .pack-cols { grid-template-columns: minmax(0, 1fr) 210px; gap: 10px; }
+        :fullscreen .pool-columns { gap: 6px; }
+        :fullscreen .pool-col { padding: 8px 4px 10px; }
+        :fullscreen .pool-dock .pool-panel { padding: 12px 8px; }
+        :-webkit-full-screen .pack-cols { grid-template-columns: minmax(0, 1fr) 210px; gap: 10px; }
+        :-webkit-full-screen .pool-columns { gap: 6px; }
+        :-webkit-full-screen .pool-col { padding: 8px 4px 10px; }
+        :-webkit-full-screen .pool-dock .pool-panel { padding: 12px 8px; }
         #fsBtn.fs-on { background: linear-gradient(135deg, #4ecdc4, #44a08d); color: #06231f; border-color: transparent; }
         .booster-card {
             position: relative;
