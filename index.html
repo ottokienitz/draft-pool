@@ -1567,6 +1567,15 @@
         }
         .booster-grid.single-row { display: flex; flex-wrap: nowrap; gap: 10px; justify-content: flex-start; }
         .booster-grid.single-row .booster-card { flex: 1 1 0; min-width: 0; max-width: 215px; }
+
+        /* Fullscreen: the reclaimed browser chrome goes into card size, not margins.
+           (Chrome/Firefox use :fullscreen; Safari needs the -webkit- form — the
+           selectors must stay in separate rules or one unknown selector kills both.) */
+        :fullscreen .booster-grid { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); }
+        :fullscreen .booster-grid.single-row .booster-card { max-width: 285px; }
+        :-webkit-full-screen .booster-grid { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); }
+        :-webkit-full-screen .booster-grid.single-row .booster-card { max-width: 285px; }
+        #fsBtn.fs-on { background: linear-gradient(135deg, #4ecdc4, #44a08d); color: #06231f; border-color: transparent; }
         .booster-card {
             position: relative;
             border-radius: 9px;
@@ -1897,6 +1906,7 @@
                     </span>
                     <span class="room-code" id="roomCodeDisplay">------</span>
                     <button class="secondary small" onclick="copyRoomLink()">📋 Copy Link</button>
+                    <button class="secondary small" id="fsBtn" onclick="toggleFullscreen()" title="Fullscreen — bigger cards, no browser chrome (F)">⛶</button>
                     <button class="secondary small" onclick="resetDraft()" id="resetDraftBtn" style="display: none;">↺ Reset Draft</button>
                     <button class="secondary small" onclick="exportPools()" id="exportPoolsBtn" style="display: none;">📥 Export Pools</button>
                     <button class="secondary small" onclick="leaveRoom()">Leave</button>
@@ -2019,6 +2029,28 @@ Supports:
                             <span id="packLiveLabel">🌐 Play live online with a friend (2-player room)</span>
                         </label>
                         <span class="text-muted" id="packLiveNote" style="font-size:0.78rem; display:block; margin-top:4px;"></span>
+                        <div id="podOptsRow" style="display:none; margin-top:10px; padding:10px 12px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px;">
+                            <label style="display:flex; align-items:center; gap:8px;">
+                                ⏱ Pick timer
+                                <select id="podTimerSelect" style="width:auto;">
+                                    <option value="0" selected>Off — no clock</option>
+                                    <option value="30">30 seconds</option>
+                                    <option value="60">60 seconds</option>
+                                    <option value="90">90 seconds</option>
+                                    <option value="120">2 minutes</option>
+                                </select>
+                            </label>
+                            <span class="text-muted" style="font-size:0.74rem; display:block; margin-top:2px;">
+                                When the clock runs out, that player's pick locks in automatically (their staged card, or the best-rated one).
+                            </span>
+                            <label style="display:flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer;">
+                                <input type="checkbox" id="podRecapToggle" style="width:auto;">
+                                📖 Reveal all pools when the draft ends (recap)
+                            </label>
+                            <span class="text-muted" style="font-size:0.74rem; display:block; margin-top:2px;">
+                                Off by default — picks stay hidden information unless the whole table opts in before the draft.
+                            </span>
+                        </div>
                     </div>
 
                     <div id="packSeatsRow">
@@ -4448,11 +4480,40 @@ Supports:
             pill.addEventListener('pointercancel', () => { dragging = false; });
         }
 
-        // Enter confirms a staged pick (unless you're typing somewhere)
+        // ---- Fullscreen: whole app, with card sizes unlocked via :fullscreen CSS ----
+        function toggleFullscreen() {
+            const el = document.documentElement;
+            const active = document.fullscreenElement || document.webkitFullscreenElement;
+            if (active) {
+                (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+            } else {
+                const req = el.requestFullscreen || el.webkitRequestFullscreen;
+                if (!req) { showToast('Fullscreen is not supported in this browser', 'error'); return; }
+                const p = req.call(el);
+                if (p && p.catch) p.catch(() => showToast('Browser blocked fullscreen — try the F11/host key instead', 'error'));
+            }
+        }
+        function syncFsButton() {
+            const btn = document.getElementById('fsBtn');
+            if (!btn) return;
+            const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+            btn.classList.toggle('fs-on', on);
+            btn.title = on ? 'Exit fullscreen (F or Esc)' : 'Fullscreen — bigger cards, no browser chrome (F)';
+        }
+        document.addEventListener('fullscreenchange', syncFsButton);
+        document.addEventListener('webkitfullscreenchange', syncFsButton);
+
+        // Enter confirms a staged pick; F toggles fullscreen (unless you're typing somewhere)
         document.addEventListener('keydown', e => {
-            if (e.key !== 'Enter') return;
             const t = e.target;
             if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            if (e.key === 'f' || e.key === 'F') {
+                if (e.metaKey || e.ctrlKey || e.altKey) return;   // leave browser shortcuts alone
+                e.preventDefault();
+                toggleFullscreen();
+                return;
+            }
+            if (e.key !== 'Enter') return;
             const bar = document.getElementById('mnConfirmBar');
             if (bar && bar.style.display !== 'none' && mnStage.length > 0) {
                 e.preventDefault();
@@ -5482,6 +5543,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 note.textContent = '';
                 if (startBtn) startBtn.textContent = fmt === 'minneapolis' ? 'Start Minneapolis Draft' : 'Start Booster Draft';
             }
+            const podOpts = document.getElementById('podOptsRow');
+            if (podOpts) podOpts.style.display = (live && fmt !== 'minneapolis') ? 'block' : 'none';
         }
 
         function updatePackSizeInfo() {
@@ -6051,6 +6114,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
             if (podActive) {
                 const inProgress = podState && podState.setup && podState.setup.started && !derivePod(podState).done;
                 if (inProgress && !confirm('Leave the live pod? You can rejoin from the same room while it\u2019s still going — a bot will NOT take over your seat.')) return;
+                podTimerStop();
                 if (podRef) {
                     try { podRef.child('lobby/' + myClientId).onDisconnect().cancel(); } catch (e) {}
                     podRef.child('lobby/' + myClientId).remove();
@@ -6825,6 +6889,8 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 format: 'pod', seats, numPacks, packSize,
                 cubeName: state.cubeName || '', started: true, ts: Date.now(),
                 seatNames, seatClients,
+                pickTimer: parseInt(document.getElementById('podTimerSelect')?.value) || 0,   // seconds; 0 = off
+                recap: !!document.getElementById('podRecapToggle')?.checked,
                 eloThresholds: gradeThresholds || computeGradeThresholds(state.cube)
             };
             podRef.update({ setup, order, cards: cardList, picks: null });   // picks:null resets the log
@@ -6950,6 +7016,76 @@ Respond with ONLY this JSON (no markdown, no extra text):
             return view;
         }
 
+        /* ---- Opt-in pick timer: each client polices its OWN seat. When your
+           clock expires, your staged card locks in (or the best-rated card by
+           the bots' scoring). A closed tab can't be policed without a server,
+           so the draft waits for it exactly as before. ---- */
+        let podTimerKey = null, podTimerDeadline = 0, podTimerInt = null;
+
+        function podTimerStop() {
+            podTimerKey = null;
+            if (podTimerInt) { clearInterval(podTimerInt); podTimerInt = null; }
+            const el = document.getElementById('podTimerSpan');
+            if (el) el.remove();
+        }
+
+        function podTimerArm(key, seconds) {
+            if (podTimerKey !== key) {
+                podTimerKey = key;
+                podTimerDeadline = Date.now() + seconds * 1000;
+            }
+            if (!podTimerInt) podTimerInt = setInterval(podTimerTick, 250);
+            podTimerTick();
+        }
+
+        function podTimerTick() {
+            if (!podActive || !podTimerKey) { podTimerStop(); return; }
+            const remaining = Math.max(0, podTimerDeadline - Date.now());
+            const bar = document.getElementById('mnConfirmBar');
+            if (bar && bar.style.display !== 'none') {
+                let el = document.getElementById('podTimerSpan');
+                if (!el) {
+                    el = document.createElement('span');
+                    el.id = 'podTimerSpan';
+                    el.className = 'mcb-status';
+                    const anchor = bar.querySelector('.mcb-spacer');
+                    if (anchor) bar.insertBefore(el, anchor); else bar.appendChild(el);
+                }
+                const s = Math.ceil(remaining / 1000);
+                el.innerHTML = `⏱ <strong style="color:${s <= 10 ? '#ff6b6b' : '#4ecdc4'}">${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}</strong>`;
+            }
+            if (remaining <= 0) {
+                podTimerStop();
+                podAutoPick();
+            }
+        }
+
+        function podAutoPick() {
+            if (!podActive || podSeat === null || !podState) return;
+            const v = derivePod(podState);
+            if (!v.started || v.done) return;
+            const me = v.seatInfo[podSeat];
+            if (!me || !me.pickable) return;   // pick landed in the meantime — nothing to force
+            let choice = (mnStage.length === 1 && me.held.includes(mnStage[0])) ? mnStage[0] : null;
+            if (!choice) {
+                // Same deterministic scoring the bots use, seeded by my own pool's colors
+                const colorMem = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+                (v.pools[podSeat] || []).forEach(n => (podCard(n).colors || []).forEach(col => { if (colorMem[col] !== undefined) colorMem[col]++; }));
+                let best = null, bestScore = -Infinity;
+                me.held.forEach(n => {
+                    const c = podCard(n);
+                    let sc = packCardRating(c);
+                    (c.colors || []).forEach(col => { sc += 0.35 * (colorMem[col] || 0); });
+                    if (sc > bestScore + 1e-9 || (Math.abs(sc - bestScore) <= 1e-9 && best !== null && n < best)) { best = n; bestScore = sc; }
+                });
+                choice = best;
+            }
+            if (!choice) return;
+            mnStage = [choice];
+            showToast(`⏱ Time! Auto-picked ${choice}`, 'info');
+            podConfirm();
+        }
+
         function podConfirm() {
             if (!podActive || podSeat === null || !podState) return;
             if (mnStage.length !== 1) { showToast('Select a card first', 'info'); return; }
@@ -6999,12 +7135,16 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 `<span>${su.seats} seats</span>` +
                 `<span class="pb-dir">${dirLabel}</span>` +
                 (me.pickable ? `<span>${me.held.length} card${me.held.length === 1 ? '' : 's'} in this pack</span>` : '') +
-                `<span>You've drafted ${myPool.length}</span>`;
+                `<span>You've drafted ${myPool.length}</span>` +
+                (su.pickTimer > 0 ? `<span>⏱ ${su.pickTimer}s picks</span>` : '');
 
             if (me.pickable) {
                 mnSyncStageKey('pod:' + r + ':' + p);
                 renderMnPickGrid(me.held.map(podCard), 1, 0, false);
+                if (su.pickTimer > 0) queueMicrotask(() => podTimerArm('pod:' + r + ':' + p, su.pickTimer));
+                else podTimerStop();
             } else {
+                podTimerStop();
                 hideMnBar();
                 const grid = document.getElementById('boosterGrid');
                 grid.classList.remove('single-row');
@@ -7051,6 +7191,7 @@ Respond with ONLY this JSON (no markdown, no extra text):
         }
 
         function renderPodComplete(v) {
+            podTimerStop();
             hideMnBar();
             document.getElementById('packTitle').textContent = 'Pod draft complete! 🎉';
             document.getElementById('packMeta').innerHTML = `<span>${v.su.seats} seats · ${v.su.numPacks} packs of ${v.su.packSize}</span>`;
@@ -7063,11 +7204,50 @@ Respond with ONLY this JSON (no markdown, no extra text):
                 <h2>🎉 That's a wrap</h2>
                 <div class="pc-sub">${podSeat !== null ? 'Your full pool is on the right. Add basics and build your 40, then take it to Arena.' : 'The pod has finished drafting.'}</div>
                 ${podSeat !== null ? `<button onclick="exportPackPool()">📤 Export / Copy to Arena</button>` : ''}
+                ${v.su.recap ? `<button class="secondary" onclick="renderPodRecap()">📖 Draft recap — all pools</button>` : ''}
                 ${isHost ? `<button onclick="hostStartPod()">➡️ Run it back (new pod)</button>` : ''}
                 <button class="secondary" onclick="exitPackDraft()" style="margin-left:8px;">Leave</button>
             </div>`;
             if (podSeat !== null) renderPoolPanel(mine);
             renderPodSeats2Complete(v);
+        }
+
+        // Full-table recap — only reachable when the host opted in BEFORE the
+        // draft, so nobody's hidden information is revealed by surprise.
+        function renderPodRecap() {
+            if (!podState || !podState.setup || !podState.setup.recap) return;
+            const v = derivePod(podState);
+            if (!v.done) return;
+            const su = v.su;
+            const P = su.packSize;
+            const seatBlocks = v.pools.map((pool, s) => {
+                const name = (su.seatNames || [])[s] || `Seat ${s + 1}`;
+                const bot = !(su.seatClients || [])[s];
+                const sig = colorSignatureHTML(pool.map(podCard));
+                const rounds = [];
+                for (let r = 0; r < su.numPacks; r++) {
+                    const picks = pool.slice(r * P, (r + 1) * P);
+                    rounds.push(`<div class="curve-group"><div class="cg-head">Pack ${r + 1}</div>` +
+                        picks.map((n, i) => {
+                            const chip = poolChipHTML(podCard(n));
+                            return i === 0 ? chip.replace('<span class="pm-name"', '<span class="pm-name" style="font-weight:700;" title="First pick of the pack"') : chip;
+                        }).join('') + `</div>`);
+                }
+                return `<div style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px; text-align:left;">
+                    <h3 style="margin:0 0 6px;">${bot ? '🤖 ' : ''}${escapeHtml(name)}${s === podSeat ? ' (you)' : ''}</h3>
+                    ${sig}${rounds.join('')}
+                </div>`;
+            }).join('');
+            const grid = document.getElementById('boosterGrid');
+            grid.classList.remove('single-row');
+            grid.innerHTML = `<div style="grid-column:1/-1;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <h2 style="margin:0;">📖 Draft recap</h2>
+                    <span class="text-muted" style="font-size:0.8rem;">first pick of each pack in bold</span>
+                    <button class="small secondary" style="margin-left:auto;" onclick="renderPodDraft()">← Back</button>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">${seatBlocks}</div>
+            </div>`;
         }
 
         // At draft end everything is public — show every seat's pool count (pools reveal via export/sharing).
